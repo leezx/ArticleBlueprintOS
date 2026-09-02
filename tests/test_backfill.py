@@ -1,11 +1,14 @@
 import json
+import re
 import tempfile
 import unittest
+from datetime import date
 from pathlib import Path
 
 from article_blueprint_os.backfill import (
     backfill_summary,
     export_coverage_report,
+    plan_date_slices,
     run_historical_backfill,
 )
 from article_blueprint_os.config import Journal, JournalRegistry
@@ -53,6 +56,15 @@ class FakeBackfillClient:
         )
 
 
+class PartitionPlanningClient:
+    def search_history(self, query):
+        dates = re.findall(r'"(\d{4}-\d{2}-\d{2})"', query)
+        start = date.fromisoformat(dates[-2])
+        end = date.fromisoformat(dates[-1])
+        count = 15_000 if (end - start).days > 700 else 7_500
+        return SearchHistory(count=count, query_key="1", webenv=query)
+
+
 def registry():
     journals = (
         Journal("journal_a", "Journal A", "Journal A", "Gold", ("general",), 1.0),
@@ -91,6 +103,8 @@ class BackfillTests(unittest.TestCase):
         self.assertEqual(2, result["unique_articles"])
         self.assertEqual(8, result["annual_checks"])
         self.assertEqual(0, result["annual_discrepancies"])
+        self.assertEqual(2, result["full_window_checks"])
+        self.assertEqual(0, result["full_window_discrepancies"])
         self.assertEqual(2, len(list((self.root / "raw").glob("*/batch_*.xml"))))
 
     def test_resume_skips_completed_journals(self):
@@ -128,6 +142,20 @@ class BackfillTests(unittest.TestCase):
         payload = json.loads(output.read_text())
         self.assertEqual(2, len(payload["journals"]))
         self.assertEqual(8, len(payload["annual_coverage"]))
+        self.assertEqual(2, len(payload["full_window_coverage"]))
+        self.assertEqual(2, len(payload["slices"]))
+
+    def test_large_query_is_partitioned_below_pubmed_limit(self):
+        journal = registry().journals[0]
+        slices = plan_date_slices(
+            PartitionPlanningClient(),
+            journal,
+            start_date="2023-01-01",
+            end_date="2026-09-02",
+        )
+        self.assertEqual(2, len(slices))
+        self.assertEqual(15_000, sum(item.expected_count for item in slices))
+        self.assertTrue(all(item.expected_count <= 9_999 for item in slices))
 
 
 if __name__ == "__main__":

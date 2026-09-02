@@ -18,6 +18,8 @@ reviewed.
   — locked design for the first historical-backfill step.
 - [`docs/STEP2_HISTORICAL_BACKFILL_DESIGN.md`](docs/STEP2_HISTORICAL_BACKFILL_DESIGN.md)
   — locked execution and coverage design for the complete backfill.
+- [`docs/STEP2_PUBMED_PARTITION_AMENDMENT.md`](docs/STEP2_PUBMED_PARTITION_AMENDMENT.md)
+  — reviewed recovery design for PubMed's 10,000-result query limit.
 - [`Worklog.md`](Worklog.md) — append-only history after PRs are merged.
 
 ## Quick start
