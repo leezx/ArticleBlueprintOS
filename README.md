@@ -37,6 +37,21 @@ article-blueprint screen --db "$ARTICLE_BLUEPRINT_DATA/metadata.sqlite3"
 article-blueprint status --db "$ARTICLE_BLUEPRINT_DATA/metadata.sqlite3"
 ```
 
+The reviewed Step 2 runner executes and resumes the complete registry, then
+exports aggregate coverage outside the repository:
+
+```bash
+article-blueprint historical-backfill \
+  --db "$ARTICLE_BLUEPRINT_DATA/processed/metadata.sqlite3" \
+  --raw-dir "$ARTICLE_BLUEPRINT_DATA/raw/pubmed" \
+  --report "$ARTICLE_BLUEPRINT_DATA/result/step2/coverage.json" \
+  --start 2023-01-01 --end 2026-09-02 --email you@example.org
+```
+
+If a journal fails, rerun the same command with `--resume-id` set to the stored
+backfill ID. Completed journals are skipped and prior failed enumeration runs
+remain in the provenance database.
+
 Set `ARTICLE_BLUEPRINT_DATA` to a directory outside this repository. In the
 Stelligen workspace the canonical location is configured through
 `BIOWORKSPACE_ROOT`:

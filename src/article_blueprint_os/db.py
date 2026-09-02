@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Iterator
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -131,6 +131,43 @@ CREATE TABLE IF NOT EXISTS human_reviews (
     reason TEXT NOT NULL,
     reviewer TEXT NOT NULL,
     reviewed_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS historical_backfills (
+    backfill_id TEXT PRIMARY KEY,
+    registry_version TEXT NOT NULL,
+    start_date TEXT NOT NULL,
+    end_date TEXT NOT NULL,
+    software_revision TEXT NOT NULL,
+    journal_count INTEGER NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('running', 'complete', 'failed')),
+    started_at TEXT NOT NULL,
+    completed_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS historical_backfill_journals (
+    backfill_id TEXT NOT NULL REFERENCES historical_backfills(backfill_id) ON DELETE CASCADE,
+    journal_key TEXT NOT NULL,
+    enumeration_run_id TEXT REFERENCES enumeration_runs(run_id),
+    status TEXT NOT NULL CHECK (status IN ('pending', 'running', 'complete', 'failed')),
+    attempt_count INTEGER NOT NULL DEFAULT 0,
+    error TEXT,
+    started_at TEXT,
+    completed_at TEXT,
+    PRIMARY KEY (backfill_id, journal_key)
+);
+
+CREATE TABLE IF NOT EXISTS annual_coverage_checks (
+    backfill_id TEXT NOT NULL REFERENCES historical_backfills(backfill_id) ON DELETE CASCADE,
+    journal_key TEXT NOT NULL,
+    enumeration_run_id TEXT NOT NULL REFERENCES enumeration_runs(run_id),
+    year INTEGER NOT NULL,
+    query TEXT NOT NULL,
+    expected_count INTEGER NOT NULL,
+    observed_count INTEGER NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('match', 'discrepancy')),
+    checked_at TEXT NOT NULL,
+    PRIMARY KEY (backfill_id, journal_key, year)
 );
 """
 
