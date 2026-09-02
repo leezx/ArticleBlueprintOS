@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Iterator
 
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -168,6 +168,35 @@ CREATE TABLE IF NOT EXISTS annual_coverage_checks (
     status TEXT NOT NULL CHECK (status IN ('match', 'discrepancy')),
     checked_at TEXT NOT NULL,
     PRIMARY KEY (backfill_id, journal_key, year)
+);
+
+CREATE TABLE IF NOT EXISTS historical_backfill_slices (
+    backfill_id TEXT NOT NULL REFERENCES historical_backfills(backfill_id) ON DELETE CASCADE,
+    journal_key TEXT NOT NULL,
+    slice_start TEXT NOT NULL,
+    slice_end TEXT NOT NULL,
+    planned_count INTEGER NOT NULL,
+    enumeration_run_id TEXT REFERENCES enumeration_runs(run_id),
+    status TEXT NOT NULL CHECK (status IN ('pending', 'running', 'complete', 'failed')),
+    attempt_count INTEGER NOT NULL DEFAULT 0,
+    error TEXT,
+    started_at TEXT,
+    completed_at TEXT,
+    PRIMARY KEY (backfill_id, journal_key, slice_start, slice_end)
+);
+
+CREATE TABLE IF NOT EXISTS backfill_coverage_checks (
+    backfill_id TEXT NOT NULL REFERENCES historical_backfills(backfill_id) ON DELETE CASCADE,
+    journal_key TEXT NOT NULL,
+    scope TEXT NOT NULL CHECK (scope IN ('full_window', 'annual')),
+    period_start TEXT NOT NULL,
+    period_end TEXT NOT NULL,
+    query TEXT NOT NULL,
+    expected_count INTEGER NOT NULL,
+    observed_count INTEGER NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('match', 'discrepancy')),
+    checked_at TEXT NOT NULL,
+    PRIMARY KEY (backfill_id, journal_key, scope, period_start, period_end)
 );
 """
 

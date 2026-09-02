@@ -12,9 +12,10 @@ Engineering is `16%` complete against the charter's five-step
 definition of 100%. Corpus/scientific readiness is `0%`: the historical
 backfill has not run and no paper has been included or downloaded.
 
-Step 1 was approved and merged as PR #1. Step 2 has started with a locked
-historical window of 2023-01-01 through 2026-09-02; the full backfill remains
-unrun until its design and resumable orchestration are committed.
+Step 1 was approved and merged as PR #1. The Step 2 runner was approved and
+merged as PR #2. The first real backfill attempt failed closed at PubMed's
+10,000-result access boundary for Nature; a date-partition amendment is now in
+implementation before the same provenance-bearing run is resumed.
 
 ## What's been answered
 
@@ -42,7 +43,8 @@ unrun until its design and resumable orchestration are committed.
 
 ## What's still open
 
-- Run the complete historical backfill and reconcile coverage — not started.
+- Partition large PubMed queries below 10,000 records, then resume the existing
+  historical backfill and reconcile coverage.
 - Calibrate LLM screening and measure `NO` false negatives — not started.
 - Retrieve lawful full text for reviewed inclusions — not started.
 - Validate blueprint extraction and prospective updates — not started.

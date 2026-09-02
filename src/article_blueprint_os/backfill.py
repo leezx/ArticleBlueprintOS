@@ -4,7 +4,8 @@ import json
 import sqlite3
 import subprocess
 import uuid
-from datetime import date
+from dataclasses import dataclass
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Callable
 
@@ -15,6 +16,14 @@ from .pubmed import PubMedClient, utc_now
 
 
 ProgressCallback = Callable[[str], None]
+PUBMED_MAX_ACCESSIBLE_RESULTS = 9_999
+
+
+@dataclass(frozen=True)
+class DateSlice:
+    start_date: str
+    end_date: str
+    expected_count: int
 
 
 def detect_software_revision() -> str:
@@ -126,69 +135,146 @@ def _annual_bounds(year: int, start_date: str, end_date: str) -> tuple[str, str]
     return max(start_date, f"{year}-01-01"), min(end_date, f"{year}-12-31")
 
 
-def reconcile_annual_coverage(
+def plan_date_slices(
+    client: PubMedClient,
+    journal: Journal,
+    *,
+    start_date: str,
+    end_date: str,
+    max_results: int = PUBMED_MAX_ACCESSIBLE_RESULTS,
+) -> list[DateSlice]:
+    """Recursively partition a PubMed query below its accessible result limit."""
+    if max_results < 1:
+        raise ValueError("max_results must be positive")
+    start = date.fromisoformat(start_date)
+    end = date.fromisoformat(end_date)
+    if start > end:
+        raise ValueError("start date must not be after end date")
+
+    def split(left: date, right: date) -> list[DateSlice]:
+        left_text, right_text = left.isoformat(), right.isoformat()
+        count = client.search_history(build_query(journal, left_text, right_text)).count
+        if count <= max_results:
+            return [DateSlice(left_text, right_text, count)]
+        if left == right:
+            raise RuntimeError(
+                f"PubMed query for {journal.key} has {count} results on {left_text}; "
+                f"cannot partition below the {max_results}-record limit"
+            )
+        midpoint = left + timedelta(days=(right - left).days // 2)
+        return split(left, midpoint) + split(midpoint + timedelta(days=1), right)
+
+    return split(start, end)
+
+
+def _store_coverage_check(
+    connection: sqlite3.Connection,
+    journal: Journal,
+    *,
+    backfill_id: str,
+    scope: str,
+    start_date: str,
+    end_date: str,
+    expected_count: int,
+    observed_count: int,
+) -> str:
+    status = "match" if expected_count == observed_count else "discrepancy"
+    with connection:
+        connection.execute(
+            """
+            INSERT INTO backfill_coverage_checks(
+                backfill_id, journal_key, scope, period_start, period_end,
+                query, expected_count, observed_count, status, checked_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(backfill_id, journal_key, scope, period_start, period_end)
+            DO UPDATE SET
+                query=excluded.query,
+                expected_count=excluded.expected_count,
+                observed_count=excluded.observed_count,
+                status=excluded.status,
+                checked_at=excluded.checked_at
+            """,
+            (
+                backfill_id,
+                journal.key,
+                scope,
+                start_date,
+                end_date,
+                build_query(journal, start_date, end_date),
+                expected_count,
+                observed_count,
+                status,
+                utc_now(),
+            ),
+        )
+    return status
+
+
+def _slice_union_count(
+    connection: sqlite3.Connection,
+    backfill_id: str,
+    journal_key: str,
+    *,
+    publication_year: int | None = None,
+) -> int:
+    year_clause = "" if publication_year is None else "AND articles.publication_year=?"
+    parameters: tuple[object, ...] = (backfill_id, journal_key)
+    if publication_year is not None:
+        parameters += (publication_year,)
+    return connection.execute(
+        f"""
+        SELECT COUNT(DISTINCT membership.pmid)
+        FROM historical_backfill_slices AS slices
+        JOIN enumeration_membership AS membership
+          ON membership.run_id = slices.enumeration_run_id
+        JOIN articles ON articles.pmid = membership.pmid
+        WHERE slices.backfill_id=? AND slices.journal_key=?
+          AND slices.status='complete' {year_clause}
+        """,
+        parameters,
+    ).fetchone()[0]
+
+
+def reconcile_partitioned_coverage(
     connection: sqlite3.Connection,
     client: PubMedClient,
     journal: Journal,
     *,
     backfill_id: str,
-    enumeration_run_id: str,
     start_date: str,
     end_date: str,
-) -> list[dict[str, object]]:
-    rows: list[dict[str, object]] = []
+    full_expected_count: int,
+) -> str:
+    full_observed_count = _slice_union_count(connection, backfill_id, journal.key)
+    full_status = _store_coverage_check(
+        connection,
+        journal,
+        backfill_id=backfill_id,
+        scope="full_window",
+        start_date=start_date,
+        end_date=end_date,
+        expected_count=full_expected_count,
+        observed_count=full_observed_count,
+    )
     for year in _years_in_window(start_date, end_date):
         annual_start, annual_end = _annual_bounds(year, start_date, end_date)
-        query = build_query(journal, annual_start, annual_end)
-        expected_count = client.search_history(query).count
-        observed_count = connection.execute(
-            """
-            SELECT COUNT(DISTINCT membership.pmid)
-            FROM enumeration_membership AS membership
-            JOIN articles ON articles.pmid = membership.pmid
-            WHERE membership.run_id=? AND articles.publication_year=?
-            """,
-            (enumeration_run_id, year),
-        ).fetchone()[0]
-        status = "match" if expected_count == observed_count else "discrepancy"
-        checked_at = utc_now()
-        with connection:
-            connection.execute(
-                """
-                INSERT INTO annual_coverage_checks(
-                    backfill_id, journal_key, enumeration_run_id, year, query,
-                    expected_count, observed_count, status, checked_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(backfill_id, journal_key, year) DO UPDATE SET
-                    enumeration_run_id=excluded.enumeration_run_id,
-                    query=excluded.query,
-                    expected_count=excluded.expected_count,
-                    observed_count=excluded.observed_count,
-                    status=excluded.status,
-                    checked_at=excluded.checked_at
-                """,
-                (
-                    backfill_id,
-                    journal.key,
-                    enumeration_run_id,
-                    year,
-                    query,
-                    expected_count,
-                    observed_count,
-                    status,
-                    checked_at,
-                ),
-            )
-        rows.append(
-            {
-                "journal_key": journal.key,
-                "year": year,
-                "expected_count": expected_count,
-                "observed_count": observed_count,
-                "status": status,
-            }
+        expected_count = client.search_history(
+            build_query(journal, annual_start, annual_end)
+        ).count
+        observed_count = _slice_union_count(
+            connection, backfill_id, journal.key, publication_year=year
         )
-    return rows
+        _store_coverage_check(
+            connection,
+            journal,
+            backfill_id=backfill_id,
+            scope="annual",
+            start_date=annual_start,
+            end_date=annual_end,
+            expected_count=expected_count,
+            observed_count=observed_count,
+        )
+    return full_status
 
 
 def run_historical_backfill(
@@ -247,34 +333,168 @@ def run_historical_backfill(
                 (started_at, backfill_id, journal.key),
             )
         try:
-            result = enumerate_journal(
-                connection,
+            full_expected_count = client.search_history(
+                build_query(journal, start_date, end_date)
+            ).count
+            planned_slices = plan_date_slices(
                 client,
-                registry,
                 journal,
                 start_date=start_date,
                 end_date=end_date,
-                batch_size=batch_size,
-                raw_dir=raw_root,
-                progress=progress,
             )
-            reconcile_annual_coverage(
+            if sum(item.expected_count for item in planned_slices) != full_expected_count:
+                raise RuntimeError(
+                    f"Partition count mismatch for {journal.key}: full query reported "
+                    f"{full_expected_count}, slices sum to "
+                    f"{sum(item.expected_count for item in planned_slices)}"
+                )
+            with connection:
+                connection.executemany(
+                    """
+                    INSERT OR IGNORE INTO historical_backfill_slices(
+                        backfill_id, journal_key, slice_start, slice_end,
+                        planned_count, status
+                    ) VALUES (?, ?, ?, ?, ?, 'pending')
+                    """,
+                    (
+                        (
+                            backfill_id,
+                            journal.key,
+                            item.start_date,
+                            item.end_date,
+                            item.expected_count,
+                        )
+                        for item in planned_slices
+                    ),
+                )
+            stored_slices = {
+                (row["slice_start"], row["slice_end"], row["planned_count"])
+                for row in connection.execute(
+                    """
+                    SELECT slice_start, slice_end, planned_count
+                    FROM historical_backfill_slices
+                    WHERE backfill_id=? AND journal_key=?
+                    """,
+                    (backfill_id, journal.key),
+                )
+            }
+            expected_slices = {
+                (item.start_date, item.end_date, item.expected_count)
+                for item in planned_slices
+            }
+            if stored_slices != expected_slices:
+                raise RuntimeError(
+                    f"Stored date partition for {journal.key} differs from the current plan"
+                )
+            if progress:
+                progress(
+                    f"{journal.key}: planned {len(planned_slices)} slice(s), "
+                    f"{full_expected_count} full-window records"
+                )
+            for item in planned_slices:
+                slice_row = connection.execute(
+                    """
+                    SELECT status FROM historical_backfill_slices
+                    WHERE backfill_id=? AND journal_key=?
+                      AND slice_start=? AND slice_end=?
+                    """,
+                    (backfill_id, journal.key, item.start_date, item.end_date),
+                ).fetchone()
+                if slice_row["status"] == "complete":
+                    if progress:
+                        progress(
+                            f"{journal.key} {item.start_date}..{item.end_date}: "
+                            "already complete; skipped"
+                        )
+                    continue
+                with connection:
+                    connection.execute(
+                        """
+                        UPDATE historical_backfill_slices
+                        SET status='running', attempt_count=attempt_count+1,
+                            error=NULL, started_at=?, completed_at=NULL
+                        WHERE backfill_id=? AND journal_key=?
+                          AND slice_start=? AND slice_end=?
+                        """,
+                        (
+                            utc_now(),
+                            backfill_id,
+                            journal.key,
+                            item.start_date,
+                            item.end_date,
+                        ),
+                    )
+                try:
+                    result = enumerate_journal(
+                        connection,
+                        client,
+                        registry,
+                        journal,
+                        start_date=item.start_date,
+                        end_date=item.end_date,
+                        batch_size=batch_size,
+                        raw_dir=raw_root,
+                        progress=progress,
+                    )
+                except Exception as exc:
+                    with connection:
+                        connection.execute(
+                            """
+                            UPDATE historical_backfill_slices
+                            SET status='failed', error=?, completed_at=?
+                            WHERE backfill_id=? AND journal_key=?
+                              AND slice_start=? AND slice_end=?
+                            """,
+                            (
+                                str(exc),
+                                utc_now(),
+                                backfill_id,
+                                journal.key,
+                                item.start_date,
+                                item.end_date,
+                            ),
+                        )
+                    raise
+                with connection:
+                    connection.execute(
+                        """
+                        UPDATE historical_backfill_slices
+                        SET enumeration_run_id=?, status='complete', completed_at=?
+                        WHERE backfill_id=? AND journal_key=?
+                          AND slice_start=? AND slice_end=?
+                        """,
+                        (
+                            result["run_id"],
+                            utc_now(),
+                            backfill_id,
+                            journal.key,
+                            item.start_date,
+                            item.end_date,
+                        ),
+                    )
+            full_status = reconcile_partitioned_coverage(
                 connection,
                 client,
                 journal,
                 backfill_id=backfill_id,
-                enumeration_run_id=str(result["run_id"]),
                 start_date=start_date,
                 end_date=end_date,
+                full_expected_count=full_expected_count,
             )
+            if full_status != "match":
+                observed = _slice_union_count(connection, backfill_id, journal.key)
+                raise RuntimeError(
+                    f"Partitioned coverage mismatch for {journal.key}: "
+                    f"full query reported {full_expected_count}, slice union has {observed}"
+                )
             with connection:
                 connection.execute(
                     """
                     UPDATE historical_backfill_journals
-                    SET enumeration_run_id=?, status='complete', completed_at=?
+                    SET enumeration_run_id=NULL, status='complete', completed_at=?
                     WHERE backfill_id=? AND journal_key=?
                     """,
-                    (result["run_id"], utc_now(), backfill_id, journal.key),
+                    (utc_now(), backfill_id, journal.key),
                 )
         except Exception as exc:
             with connection:
@@ -329,17 +549,27 @@ def backfill_summary(connection: sqlite3.Connection, backfill_id: str) -> dict[s
         """
         SELECT COUNT(*) AS checked,
                SUM(CASE WHEN status='discrepancy' THEN 1 ELSE 0 END) AS discrepancies
-        FROM annual_coverage_checks WHERE backfill_id=?
+        FROM backfill_coverage_checks
+        WHERE backfill_id=? AND scope='annual'
+        """,
+        (backfill_id,),
+    ).fetchone()
+    full_coverage = connection.execute(
+        """
+        SELECT COUNT(*) AS checked,
+               SUM(CASE WHEN status='discrepancy' THEN 1 ELSE 0 END) AS discrepancies
+        FROM backfill_coverage_checks
+        WHERE backfill_id=? AND scope='full_window'
         """,
         (backfill_id,),
     ).fetchone()
     article_count = connection.execute(
         """
         SELECT COUNT(DISTINCT membership.pmid)
-        FROM historical_backfill_journals AS journals
+        FROM historical_backfill_slices AS slices
         JOIN enumeration_membership AS membership
-          ON membership.run_id = journals.enumeration_run_id
-        WHERE journals.backfill_id=? AND journals.status='complete'
+          ON membership.run_id = slices.enumeration_run_id
+        WHERE slices.backfill_id=? AND slices.status='complete'
         """,
         (backfill_id,),
     ).fetchone()[0]
@@ -357,6 +587,8 @@ def backfill_summary(connection: sqlite3.Connection, backfill_id: str) -> dict[s
         "unique_articles": article_count,
         "annual_checks": coverage["checked"] or 0,
         "annual_discrepancies": coverage["discrepancies"] or 0,
+        "full_window_checks": full_coverage["checked"] or 0,
+        "full_window_discrepancies": full_coverage["discrepancies"] or 0,
         "started_at": run["started_at"],
         "completed_at": run["completed_at"],
     }
@@ -384,10 +616,37 @@ def export_coverage_report(
         dict(row)
         for row in connection.execute(
             """
-            SELECT journal_key, year, expected_count, observed_count, status,
-                   query, enumeration_run_id, checked_at
-            FROM annual_coverage_checks
-            WHERE backfill_id=? ORDER BY journal_key, year
+            SELECT journal_key, period_start, period_end, expected_count,
+                   observed_count, status, query, checked_at
+            FROM backfill_coverage_checks
+            WHERE backfill_id=? AND scope='annual'
+            ORDER BY journal_key, period_start
+            """,
+            (backfill_id,),
+        )
+    ]
+    payload["full_window_coverage"] = [
+        dict(row)
+        for row in connection.execute(
+            """
+            SELECT journal_key, period_start, period_end, expected_count,
+                   observed_count, status, query, checked_at
+            FROM backfill_coverage_checks
+            WHERE backfill_id=? AND scope='full_window'
+            ORDER BY journal_key
+            """,
+            (backfill_id,),
+        )
+    ]
+    payload["slices"] = [
+        dict(row)
+        for row in connection.execute(
+            """
+            SELECT journal_key, slice_start, slice_end, planned_count,
+                   enumeration_run_id, status, attempt_count, error,
+                   started_at, completed_at
+            FROM historical_backfill_slices
+            WHERE backfill_id=? ORDER BY journal_key, slice_start
             """,
             (backfill_id,),
         )
