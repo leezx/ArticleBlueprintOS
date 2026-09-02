@@ -14,8 +14,10 @@ backfill has not run and no paper has been included or downloaded.
 
 Step 1 was approved and merged as PR #1. The Step 2 runner was approved and
 merged as PR #2. The first real backfill attempt failed closed at PubMed's
-10,000-result access boundary for Nature; a date-partition amendment is now in
-implementation before the same provenance-bearing run is resumed.
+10,000-result access boundary for Nature. PR #3 added reviewed date
+partitioning, whose first run then showed that PubMed date slices can contain
+overlapping PMIDs. A second evidence-based amendment is replacing invalid
+slice-count additivity with the authoritative distinct-PMID union gate.
 
 ## What's been answered
 
@@ -43,8 +45,8 @@ implementation before the same provenance-bearing run is resumed.
 
 ## What's still open
 
-- Partition large PubMed queries below 10,000 records, then resume the existing
-  historical backfill and reconcile coverage.
+- Allow legitimate PMID overlap across PubMed date slices, then resume the
+  existing historical backfill and reconcile distinct-union coverage.
 - Calibrate LLM screening and measure `NO` false negatives — not started.
 - Retrieve lawful full text for reviewed inclusions — not started.
 - Validate blueprint extraction and prospective updates — not started.

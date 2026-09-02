@@ -65,6 +65,42 @@ class PartitionPlanningClient:
         return SearchHistory(count=count, query_key="1", webenv=query)
 
 
+class OverlappingSliceClient:
+    def search_history(self, query):
+        dates = re.findall(r'"(\d{4}-\d{2}-\d{2})"', query)
+        count = 3 if dates[-2:] == ["2023-01-01", "2023-01-02"] else 2
+        return SearchHistory(count=count, query_key="1", webenv=query)
+
+    def fetch_history(self, history, *, batch_size=200):
+        dates = re.findall(r'"(\d{4}-\d{2}-\d{2})"', history.webenv)
+        pmids = ("91000001", "91000002") if dates[-1] == "2023-01-01" else (
+            "91000002",
+            "91000003",
+        )
+        articles = tuple(
+            Article(
+                pmid=pmid,
+                doi=None,
+                source_journal_title="Overlap Journal",
+                publication_date=dates[-1],
+                publication_date_precision="day",
+                publication_year=2023,
+                title=f"Synthetic overlap article {pmid}",
+                abstract="Synthetic abstract",
+                article_types=("Journal Article",),
+                authors=(),
+                mesh_terms=(),
+            )
+            for pmid in pmids
+        )
+        yield FetchBatch(
+            retstart=0,
+            articles=articles,
+            raw_xml=f"<slice>{dates[-1]}</slice>".encode(),
+            sha256=dates[-1].replace("-", "") * 8,
+        )
+
+
 def registry():
     journals = (
         Journal("journal_a", "Journal A", "Journal A", "Gold", ("general",), 1.0),
@@ -154,8 +190,39 @@ class BackfillTests(unittest.TestCase):
             end_date="2026-09-02",
         )
         self.assertEqual(2, len(slices))
-        self.assertEqual(15_000, sum(item.expected_count for item in slices))
         self.assertTrue(all(item.expected_count <= 9_999 for item in slices))
+
+    def test_overlapping_slice_counts_use_distinct_union_gate(self):
+        overlap_registry = JournalRegistry(
+            "overlap-v1",
+            "2026-09-02",
+            (
+                Journal(
+                    "overlap",
+                    "Overlap Journal",
+                    "Overlap Journal",
+                    "Gold",
+                    ("general",),
+                    1.0,
+                ),
+            ),
+        )
+        result = run_historical_backfill(
+            self.connection,
+            OverlappingSliceClient(),
+            overlap_registry,
+            start_date="2023-01-01",
+            end_date="2023-01-02",
+            raw_dir=self.root / "overlap-raw",
+            max_slice_results=2,
+            software_revision="overlap-test",
+        )
+        planned_total = self.connection.execute(
+            "SELECT SUM(planned_count) FROM historical_backfill_slices"
+        ).fetchone()[0]
+        self.assertEqual(4, planned_total)
+        self.assertEqual(3, result["unique_articles"])
+        self.assertEqual(0, result["full_window_discrepancies"])
 
 
 if __name__ == "__main__":

@@ -286,6 +286,7 @@ def run_historical_backfill(
     end_date: str,
     raw_dir: str | Path,
     batch_size: int = 200,
+    max_slice_results: int = PUBMED_MAX_ACCESSIBLE_RESULTS,
     software_revision: str | None = None,
     resume_id: str | None = None,
     progress: ProgressCallback | None = None,
@@ -341,13 +342,8 @@ def run_historical_backfill(
                 journal,
                 start_date=start_date,
                 end_date=end_date,
+                max_results=max_slice_results,
             )
-            if sum(item.expected_count for item in planned_slices) != full_expected_count:
-                raise RuntimeError(
-                    f"Partition count mismatch for {journal.key}: full query reported "
-                    f"{full_expected_count}, slices sum to "
-                    f"{sum(item.expected_count for item in planned_slices)}"
-                )
             with connection:
                 connection.executemany(
                     """
@@ -368,7 +364,7 @@ def run_historical_backfill(
                     ),
                 )
             stored_slices = {
-                (row["slice_start"], row["slice_end"], row["planned_count"])
+                (row["slice_start"], row["slice_end"])
                 for row in connection.execute(
                     """
                     SELECT slice_start, slice_end, planned_count
@@ -378,10 +374,7 @@ def run_historical_backfill(
                     (backfill_id, journal.key),
                 )
             }
-            expected_slices = {
-                (item.start_date, item.end_date, item.expected_count)
-                for item in planned_slices
-            }
+            expected_slices = {(item.start_date, item.end_date) for item in planned_slices}
             if stored_slices != expected_slices:
                 raise RuntimeError(
                     f"Stored date partition for {journal.key} differs from the current plan"
@@ -389,7 +382,7 @@ def run_historical_backfill(
             if progress:
                 progress(
                     f"{journal.key}: planned {len(planned_slices)} slice(s), "
-                    f"{full_expected_count} full-window records"
+                    f"{full_expected_count} full-window records; slice counts may overlap"
                 )
             for item in planned_slices:
                 slice_row = connection.execute(
