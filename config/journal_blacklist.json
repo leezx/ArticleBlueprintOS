@@ -1,0 +1,18 @@
+{
+  "version": "v1.0.0",
+  "policy": {
+    "mode": "whitelist_only",
+    "exact_journal_action": "exclude",
+    "publisher_family_action": "exclude_unless_explicitly_whitelisted",
+    "whitelist_precedence": true,
+    "note": "Publisher-family rules are defaults, not judgments about every title. Exact whitelist entries require deliberate review and override a family default."
+  },
+  "exact_journals": [
+    "Scientific Reports", "PLOS ONE", "Frontiers in Oncology",
+    "Frontiers in Genetics", "Frontiers in Immunology", "BMC Cancer",
+    "Cancers", "Oncology Letters", "Molecular and Clinical Oncology",
+    "Medicine", "Oncotarget", "Aging", "Journal of Cancer",
+    "Cancer Management and Research", "Technology in Cancer Research & Treatment"
+  ],
+  "publisher_families": ["MDPI", "Hindawi", "Bentham Science", "Dove Medical Press"]
+}

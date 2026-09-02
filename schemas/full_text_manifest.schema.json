@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/leezx/ArticleBlueprintOS/schemas/full_text_manifest.schema.json",
+  "title": "Full-text retrieval manifest row",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["pmid", "status", "checked_at"],
+  "properties": {
+    "pmid": {"type": "string", "pattern": "^[0-9]+$"},
+    "doi": {"type": ["string", "null"]},
+    "status": {
+      "enum": [
+        "downloaded", "downloaded_with_si", "open_access_downloaded",
+        "full_text_html_available", "available_not_downloaded",
+        "carsi_waiting_user", "carsi_resolved_retry_needed",
+        "publisher_verification_waiting_user", "sciencedirect_robot_check",
+        "retry_after_user_verification", "do_not_auto_retry",
+        "url_needs_repair", "library_no_permission", "no_full_text_link",
+        "publisher_blocked_waiting_user", "no_authorized_pdf_found",
+        "pdf_fetch_failed", "failed_after_retry"
+      ]
+    },
+    "source_url": {"type": ["string", "null"]},
+    "local_path": {"type": ["string", "null"]},
+    "bytes": {"type": ["integer", "null"], "minimum": 0},
+    "sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+    "format_verified": {"type": "boolean"},
+    "si_status": {"enum": ["not_checked", "available_not_downloaded", "downloaded", "not_found"]},
+    "checked_at": {"type": "string", "format": "date-time"},
+    "notes": {"type": ["string", "null"]}
+  }
+}

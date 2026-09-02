@@ -1,0 +1,43 @@
+{
+  "version": "v1.0.0",
+  "cancer": [
+    "\\bcancers?\\b",
+    "\\btumou?rs?\\b",
+    "\\bneoplas(?:m|ms|ia|tic)\\b",
+    "\\bcarcinomas?\\b",
+    "\\badenocarcinomas?\\b",
+    "\\bsarcomas?\\b",
+    "\\bleuk(?:a|e)mias?\\b",
+    "\\blymphomas?\\b",
+    "\\bmelanomas?\\b",
+    "\\bmyelomas?\\b",
+    "\\bgliomas?\\b",
+    "\\bglioblastomas?\\b",
+    "\\bmalignan(?:t|cy|cies)\\b",
+    "\\boncolog(?:y|ic|ical)\\b",
+    "\\bmetasta(?:sis|ses|tic)\\b"
+  ],
+  "omics": [
+    "\\bgenom(?:e|es|ic|ics)\\b",
+    "\\btranscriptom(?:e|es|ic|ics)\\b",
+    "\\bsingle[- ]cell\\b",
+    "\\bsingle[- ]nucle(?:us|i)\\b",
+    "\\bscRNA(?:-seq)?\\b",
+    "\\bsnRNA(?:-seq)?\\b",
+    "\\bspatial (?:transcriptom|omics|profiling)\\w*\\b",
+    "\\bproteom(?:e|es|ic|ics)\\b",
+    "\\bmetabolom(?:e|es|ic|ics)\\b",
+    "\\bepigenom(?:e|es|ic|ics)\\b",
+    "\\bmethyl(?:ation|ome|omic)\\b",
+    "\\bATAC(?:-seq)?\\b",
+    "\\bchromatin accessibility\\b",
+    "\\bmulti[- ]?omics?\\b",
+    "\\bpan[- ]?omics?\\b",
+    "\\bmolecular profil(?:e|es|ing)\\b",
+    "\\bRNA[- ]?seq(?:uencing)?\\b",
+    "\\bwhole[- ](?:genome|exome) sequencing\\b",
+    "\\bW[EG]S\\b",
+    "\\bcopy[- ]number (?:alteration|variation|profile)\\w*\\b",
+    "\\bsomatic (?:mutation|variant)\\w*\\b"
+  ]
+}

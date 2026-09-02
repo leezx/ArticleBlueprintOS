@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/leezx/ArticleBlueprintOS/schemas/llm_screen.schema.json",
+  "title": "Structured LLM screen",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "pmid", "disease", "study", "primary_contribution", "data_modalities",
+    "computational_centrality", "new_experimental_data", "public_data_reuse",
+    "relevance", "confidence", "rationale", "model", "prompt_version",
+    "screened_at"
+  ],
+  "properties": {
+    "pmid": {"type": "string", "pattern": "^[0-9]+$"},
+    "disease": {"enum": ["cancer", "non-cancer", "unclear"]},
+    "study": {"enum": ["original research", "review", "commentary", "method", "unclear"]},
+    "primary_contribution": {
+      "enum": ["biological discovery", "clinical discovery", "computational method", "experimental mechanism", "resource/atlas", "other"]
+    },
+    "data_modalities": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"enum": ["scRNA", "bulk RNA", "spatial", "genomics", "epigenomics", "proteomics", "multiomics", "pathology", "other"]}
+    },
+    "computational_centrality": {"type": "integer", "minimum": 0, "maximum": 3},
+    "new_experimental_data": {"enum": ["none", "limited", "substantial", "unclear"]},
+    "public_data_reuse": {"enum": ["none", "minor", "major", "unclear"]},
+    "relevance": {"enum": ["YES", "MAYBE", "NO"]},
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "rationale": {"type": "string", "minLength": 1},
+    "model": {"type": "string", "minLength": 1},
+    "prompt_version": {"type": "string", "minLength": 1},
+    "screened_at": {"type": "string", "format": "date-time"}
+  }
+}
