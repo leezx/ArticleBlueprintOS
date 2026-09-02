@@ -6,15 +6,15 @@ from article_blueprint_os.config import load_journals
 from article_blueprint_os.db import connect, init_db
 from article_blueprint_os.pipeline import build_query, enumerate_journal
 from article_blueprint_os.pubmed import FetchBatch, SearchHistory, parse_pubmed_xml
+from synthetic_pubmed import SYNTHETIC_PUBMED_XML
 
 
 ROOT = Path(__file__).resolve().parents[1]
-FIXTURE = ROOT / "tests" / "fixtures" / "pubmed_sample.xml"
 
 
 class FakeClient:
     def __init__(self):
-        self.articles = parse_pubmed_xml(FIXTURE.read_bytes())[:1]
+        self.articles = parse_pubmed_xml(SYNTHETIC_PUBMED_XML)[:1]
 
     def search_history(self, query):
         return SearchHistory(count=1, query_key="1", webenv="test")
@@ -23,7 +23,7 @@ class FakeClient:
         yield FetchBatch(
             retstart=0,
             articles=tuple(self.articles),
-            raw_xml=FIXTURE.read_bytes(),
+            raw_xml=SYNTHETIC_PUBMED_XML,
             sha256="0" * 64,
         )
 
