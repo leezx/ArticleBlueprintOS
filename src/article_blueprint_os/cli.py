@@ -6,6 +6,7 @@ import os
 import sys
 from pathlib import Path
 
+from .backfill import export_coverage_report, run_historical_backfill
 from .config import load_journals, load_screening_rules
 from .db import connect, init_db
 from .pipeline import enumerate_journal
@@ -156,10 +157,57 @@ def command_status(args: argparse.Namespace) -> None:
             "human_reviewed": connection.execute(
                 "SELECT COUNT(DISTINCT pmid) FROM human_reviews"
             ).fetchone()[0],
+            "historical_backfills": connection.execute(
+                "SELECT COUNT(*) FROM historical_backfills"
+            ).fetchone()[0],
         }
     finally:
         connection.close()
     _print_json(payload)
+
+
+def command_historical_backfill(args: argparse.Namespace) -> None:
+    registry = load_journals(args.journals)
+    client = PubMedClient(
+        email=args.email,
+        api_key=os.environ.get(args.api_key_env) if args.api_key_env else None,
+    )
+    connection = _open_db(args.db)
+    try:
+        result = run_historical_backfill(
+            connection,
+            client,
+            registry,
+            start_date=args.start,
+            end_date=args.end,
+            raw_dir=args.raw_dir,
+            batch_size=args.batch_size,
+            software_revision=args.software_revision,
+            resume_id=args.resume_id,
+            progress=lambda message: print(message, file=sys.stderr, flush=True),
+        )
+        if args.report:
+            export_coverage_report(connection, str(result["backfill_id"]), args.report)
+            result["coverage_report"] = str(Path(args.report).expanduser().resolve())
+    finally:
+        connection.close()
+    _print_json(result)
+
+
+def command_coverage_report(args: argparse.Namespace) -> None:
+    connection = _open_db(args.db)
+    try:
+        result = export_coverage_report(connection, args.backfill_id, args.out)
+    finally:
+        connection.close()
+    _print_json(
+        {
+            "backfill_id": result["backfill_id"],
+            "output": str(Path(args.out).expanduser().resolve()),
+            "annual_checks": result["annual_checks"],
+            "annual_discrepancies": result["annual_discrepancies"],
+        }
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -220,6 +268,34 @@ def build_parser() -> argparse.ArgumentParser:
     status_parser = subparsers.add_parser("status", help="show compact corpus counts")
     status_parser.add_argument("--db", required=True)
     status_parser.set_defaults(func=command_status)
+
+    backfill_parser = subparsers.add_parser(
+        "historical-backfill",
+        help="run or resume the complete journal registry backfill",
+    )
+    backfill_parser.add_argument("--db", required=True)
+    backfill_parser.add_argument("--journals", default=str(DEFAULT_JOURNALS))
+    backfill_parser.add_argument("--start", required=True)
+    backfill_parser.add_argument("--end", required=True)
+    backfill_parser.add_argument("--email", required=True, help="contact email sent to NCBI")
+    backfill_parser.add_argument("--api-key-env", default="NCBI_API_KEY")
+    backfill_parser.add_argument("--batch-size", type=int, default=200)
+    backfill_parser.add_argument("--raw-dir", required=True)
+    backfill_parser.add_argument("--report")
+    backfill_parser.add_argument("--resume-id")
+    backfill_parser.add_argument(
+        "--software-revision",
+        help="git SHA or release identifier; defaults to the current repository HEAD",
+    )
+    backfill_parser.set_defaults(func=command_historical_backfill)
+
+    report_parser = subparsers.add_parser(
+        "coverage-report", help="export a stored Step 2 aggregate coverage report"
+    )
+    report_parser.add_argument("--db", required=True)
+    report_parser.add_argument("--backfill-id", required=True)
+    report_parser.add_argument("--out", required=True)
+    report_parser.set_defaults(func=command_coverage_report)
     return parser
 
 

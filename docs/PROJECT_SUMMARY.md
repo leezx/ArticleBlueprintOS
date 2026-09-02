@@ -8,13 +8,13 @@ blueprints from it?
 
 ## Status
 
-Engineering is `8% → 16% (+8%)` complete against the charter's five-step
+Engineering is `16%` complete against the charter's five-step
 definition of 100%. Corpus/scientific readiness is `0%`: the historical
 backfill has not run and no paper has been included or downloaded.
 
-The v1 scope, first-step data contracts, implementation, unit tests, and live
-PubMed registry smoke test are complete. The immediate milestone is GitHub PR
-review; the historical backfill remains unrun.
+Step 1 was approved and merged as PR #1. Step 2 has started with a locked
+historical window of 2023-01-01 through 2026-09-02; the full backfill remains
+unrun until its design and resumable orchestration are committed.
 
 ## What's been answered
 
@@ -34,25 +34,24 @@ review; the historical backfill remains unrun.
 
 | Workstream | Weight | Completion | Weighted progress | Next gate |
 |---|---:|---:|---:|---|
-| Registry and pipeline foundation | 20% | 80% | 16% | PR approval and merge |
-| Historical backfill and coverage | 25% | 0% | 0% | Run 2023-cutoff enumeration |
+| Registry and pipeline foundation | 20% | 100% | 20% | Prospective maintenance later |
+| Historical backfill and coverage | 25% | 0% | 0% | Run locked 2023-01-01–2026-09-02 enumeration |
 | LLM calibration and human audit | 20% | 0% | 0% | Produce reviewed queues |
 | Full-text triage and retrieval | 15% | 0% | 0% | Reviewed paper list |
 | Blueprint extraction and updates | 20% | 0% | 0% | Included full-text corpus |
 
 ## What's still open
 
-- Review and merge Step 1 — implementation complete, PR pending.
 - Run the complete historical backfill and reconcile coverage — not started.
 - Calibrate LLM screening and measure `NO` false negatives — not started.
 - Retrieve lawful full text for reviewed inclusions — not started.
 - Validate blueprint extraction and prospective updates — not started.
-- Record a persistent ChatGPT PR-review conversation URL — awaiting user input,
-  but not blocking GitHub PR creation.
+- Add baseline CI, a non-blocking Step 1 review observation.
 
 ## Steps closed so far
 
-No step has been merged.
+- Step 1 — Master Universe and screening foundation: merged in PR #1 at
+  `90ab9f0812920caca7df9d4ad90c2723e24ea7e2` after external `APPROVE` review.
 
 ## Scope boundaries
 
