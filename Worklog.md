@@ -40,3 +40,14 @@ results exist.
   the repaired head passed both CI jobs and received `APPROVE`.
 - **Execution finding**: the first real run failed closed when Nature exceeded
   PubMed's 10,000 accessible-result limit. No partial journal was accepted.
+
+## 2026-09-02 — PubMed large-query partition fix merged
+
+- **PR**: [#3 — Step 2: partition PubMed queries above 10,000 records](https://github.com/leezx/ArticleBlueprintOS/pull/3)
+- **Merge commit**: `8c0a91d6579f3484ffb6c158c61a56e81546127e`
+- **Delivered**: recursive date slicing, slice-level provenance and resume,
+  full-window distinct-PMID union validation, additive schema v3, and 20 tests.
+- **Review**: `APPROVE`; both Python 3.11 and 3.12 CI jobs passed.
+- **Execution finding**: Nature's non-overlapping date ranges produced
+  overlapping PMID result sets (slice counts 15,569 vs full count 15,540), so
+  raw slice-count additivity is not a valid completeness gate.

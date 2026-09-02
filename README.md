@@ -20,6 +20,8 @@ reviewed.
   — locked execution and coverage design for the complete backfill.
 - [`docs/STEP2_PUBMED_PARTITION_AMENDMENT.md`](docs/STEP2_PUBMED_PARTITION_AMENDMENT.md)
   — reviewed recovery design for PubMed's 10,000-result query limit.
+- [`docs/STEP2_PUBMED_DATE_OVERLAP_AMENDMENT.md`](docs/STEP2_PUBMED_DATE_OVERLAP_AMENDMENT.md)
+  — evidence-based correction for PMIDs that match more than one date slice.
 - [`Worklog.md`](Worklog.md) — append-only history after PRs are merged.
 
 ## Quick start
