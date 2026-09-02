@@ -4,11 +4,12 @@
 - **Canonical workspace path**:
   `${BIOWORKSPACE_ROOT}/DATA/1.Databases/article_blueprint_os/`
 - **Metadata source**: NCBI PubMed E-utilities.
-- **Time range**: 2023-01-01 through an explicit run cutoff.
+- **Time range**: 2023-01-01 through the locked historical cutoff 2026-09-02.
 - **Journal universe**: `config/journals.json`.
 - **License/access**: PubMed metadata under NCBI terms; full text only through
   legitimate open-access sources or the user's authorized institutional route.
-- **Current status**: design/implementation; no historical payload acquired.
+- **Current status**: Step 1 merged; Step 2 backfill design locked; no historical
+  payload acquired yet.
 - **Expected payloads**: immutable PubMed XML responses, versioned SQLite
   metadata database, screening/audit exports, legally retrieved full text,
   extracted text, and blueprint outputs.

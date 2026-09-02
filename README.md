@@ -16,6 +16,8 @@ reviewed.
   open work.
 - [`docs/STEP1_MASTER_UNIVERSE_DESIGN.md`](docs/STEP1_MASTER_UNIVERSE_DESIGN.md)
   — locked design for the first historical-backfill step.
+- [`docs/STEP2_HISTORICAL_BACKFILL_DESIGN.md`](docs/STEP2_HISTORICAL_BACKFILL_DESIGN.md)
+  — locked execution and coverage design for the complete backfill.
 - [`Worklog.md`](Worklog.md) — append-only history after PRs are merged.
 
 ## Quick start
