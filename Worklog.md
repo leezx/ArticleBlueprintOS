@@ -8,14 +8,14 @@ what changed, why, real findings, review history, and the merge commit.
 | Step | Status | PR | Notes |
 |---|---|---:|---|
 | 1. Master Universe and screening foundation | merged | [#1](https://github.com/leezx/ArticleBlueprintOS/pull/1) | Approved; merge commit `90ab9f0` |
-| 2. Historical backfill and coverage validation | results pending review | [#4](https://github.com/leezx/ArticleBlueprintOS/pull/4) | Runner and both PubMed partition amendments merged; completed run is documented in the results PR |
+| 2. Historical backfill and coverage validation | merged | [#5](https://github.com/leezx/ArticleBlueprintOS/pull/5) | 67/67 journal backfill, full-window reconciliation, and deterministic screening results approved |
 | 3. LLM screening calibration and human audit | not started | — | Measure false-negative rate |
 | 4. Full-text triage and lawful retrieval | not started | — | Small reviewed batches only |
 | 5. Blueprint extraction and prospective updates | not started | — | Living corpus and architecture library |
 
-Overall: `45%` provisional engineering completion against the charter
-definition of 100%; scientific corpus readiness remains `0%` until structured
-screening and human audit results exist.
+Overall: `45%` engineering completion against the charter definition of 100%;
+scientific corpus readiness remains `0%` until structured screening and human
+audit results exist.
 
 ## 2026-09-02 — Step 1 merged
 
@@ -63,3 +63,16 @@ screening and human audit results exist.
 - **Review and validation**: external `APPROVE`; Python 3.11 and 3.12 CI
   passed. The correction enabled the same provenance-preserving backfill to
   complete without treating legitimate PubMed date semantics as data loss.
+
+## 2026-09-03 — Step 2 results merged
+
+- **PR**: [#5 — record completed Step 2 backfill results](https://github.com/leezx/ArticleBlueprintOS/pull/5)
+- **Merge commit**: `3b481b61696e7349836cbbd7673adb6ba9c8c37a`
+- **Delivered**: aggregate-only documentation of a completed 67-journal
+  backfill, 195,706 distinct metadata records, 67/67 authoritative
+  full-window reconciliations, 0 full-window discrepancies, and deterministic
+  screening for every record.
+- **Review and validation**: external `APPROVE`; GitHub Actions Python 3.11
+  and 3.12 tests passed. The 159 annual diagnostic discrepancies remain
+  explicitly carried forward as provenance observations, not hidden or forced
+  into an invalid completeness rule.
