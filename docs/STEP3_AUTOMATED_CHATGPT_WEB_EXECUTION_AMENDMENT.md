@@ -17,11 +17,18 @@ profiles, cookies, localStorage, sessionStorage, IndexedDB, authentication
 headers, DevTools/network traffic, or any other authentication/session
 material. A logged-in page may be used only through its rendered UI.
 
-Each batch remains 1–50 records (20 by default). Only the allowlisted
-`input.jsonl` and locked `web_prompt.txt` are uploaded. The operator records
+Each batch remains 1–50 records (20 by default). The canonical browser
+submission uploads **only** the locked `web_prompt.txt`; it already contains
+the complete schema and model-visible JSONL input. The companion `input.jsonl`
+stays local for checksum and audit and is not uploaded, preventing duplicate
+metadata in the conversation. The composer message is the exact, versioned
+wrapper `ABOS-WEB-WRAPPER-v1: Execute the attached web_prompt.txt exactly.`
+The operator records
 the exact visible model label, execution mode (`automated_browser`), UTC
 execution time, software revision, batch/attempt identity, input/output
-checksums, fresh-chat confirmation, and raw response path. Raw output is
+checksums, `web_prompt_sha256`, wrapper version and `wrapper_sha256`,
+fresh-chat confirmation, and raw response path. The model-visible submission
+identity is the pair (`web_prompt_sha256`, `wrapper_sha256`). Raw output is
 immutable; malformed output is retained as a failed attempt and retried only
 with the next auditable attempt number.
 
