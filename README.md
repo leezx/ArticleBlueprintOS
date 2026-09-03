@@ -56,6 +56,45 @@ If a journal fails, rerun the same command with `--resume-id` set to the stored
 backfill ID. Completed journals are skipped and prior failed enumeration runs
 remain in the provenance database.
 
+## Manual Web calibration bridge
+
+The reviewed Step 3 amendment permits a human operator to use ChatGPT Web for
+the locked 600-record calibration. ArticleBlueprintOS does not call a model,
+control a browser, or transmit metadata. Prepare the deterministic external
+packets locally (20 records per batch by default):
+
+```bash
+article-blueprint prepare-web-calibration-batches \
+  --db "$ARTICLE_BLUEPRINT_DATA/processed/metadata.sqlite3" \
+  --calibration-id CALIBRATION_ID \
+  --out "$ARTICLE_BLUEPRINT_DATA/result/step3/calibration/web_batches" \
+  --software-revision GIT_SHA
+```
+
+For each packet, a human starts a fresh ChatGPT conversation, pastes the whole
+`web_prompt.txt`, and saves the response verbatim to a new file in that batch
+directory. The model-visible packet contains only PMID, DOI, title, abstract,
+article types, and MeSH terms; sampling strata and priority metadata remain
+local provenance. Validate one attempt locally with the exact visible UI model
+label and the actual execution time:
+
+```bash
+article-blueprint validate-web-calibration-batch \
+  --db "$ARTICLE_BLUEPRINT_DATA/processed/metadata.sqlite3" \
+  --manifest "$ARTICLE_BLUEPRINT_DATA/result/step3/calibration/web_batches/BATCH_ID/manifest.json" \
+  --output "$ARTICLE_BLUEPRINT_DATA/result/step3/calibration/web_batches/BATCH_ID/output_raw.txt" \
+  --model-display-name "VISIBLE CHATGPT UI LABEL" \
+  --operator "OPERATOR NAME" \
+  --executed-at "2026-09-03T12:00:00Z" \
+  --fresh-chat-confirmed
+```
+
+Malformed output is never repaired or overwritten. Retain it and validate a
+retry from a different raw-output path with `--attempt 2` (then 3, and so on).
+Validation records every failed and valid attempt separately and imports only
+complete schema-valid records. It does not mark calibration complete or relax
+the independent human-reference and recall gates.
+
 Set `ARTICLE_BLUEPRINT_DATA` to a directory outside this repository. In the
 Stelligen workspace the canonical location is configured through
 `BIOWORKSPACE_ROOT`:

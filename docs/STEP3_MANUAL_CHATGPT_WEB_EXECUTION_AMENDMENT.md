@@ -44,6 +44,10 @@ Each contains `manifest.json`, `input.jsonl`, and `web_prompt.txt`; raw output
 and validation results are added externally after manual operation. Manifests
 hold ordered PMIDs, strata, record count, checksum, prompt/schema versions,
 software revision, attempt, timestamp, and lifecycle status.
+The model-visible `input.jsonl` is a strict allowlist containing only PMID,
+DOI, title, abstract, article types, and MeSH terms. Sampling strata,
+priority flags, journal keys, ranks, and population counts remain local
+provenance only and must never be included in the Web prompt.
 
 `web_prompt.txt` embeds the semantic requirements of `llm_screen_v1.md` and
 requires metadata-only classification, same-order JSONL, exactly one object
