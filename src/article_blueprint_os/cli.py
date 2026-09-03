@@ -11,7 +11,7 @@ from .config import load_journals, load_screening_rules
 from .db import connect, init_db
 from .pipeline import enumerate_journal
 from .pubmed import PubMedClient
-from .review import export_llm_queue, import_llm_results, sample_no_audit
+from .review import create_calibration_sample, export_calibration_queue, export_llm_queue, import_llm_results, sample_no_audit
 from .screening import screen_database
 
 
@@ -117,6 +117,24 @@ def command_export_llm(args: argparse.Namespace) -> None:
     finally:
         connection.close()
     _print_json({"rows": count, "output": str(Path(args.out).expanduser().resolve())})
+
+
+def command_create_calibration(args: argparse.Namespace) -> None:
+    connection = _open_db(args.db)
+    try:
+        result = create_calibration_sample(connection, seed=args.seed, prompt_version=args.prompt_version)
+    finally:
+        connection.close()
+    _print_json(result)
+
+
+def command_export_calibration(args: argparse.Namespace) -> None:
+    connection = _open_db(args.db)
+    try:
+        count = export_calibration_queue(connection, args.calibration_id, args.out)
+    finally:
+        connection.close()
+    _print_json({"calibration_id": args.calibration_id, "rows": count, "output": str(Path(args.out).expanduser().resolve())})
 
 
 def command_import_llm(args: argparse.Namespace) -> None:
@@ -253,6 +271,18 @@ def build_parser() -> argparse.ArgumentParser:
     export_parser.add_argument("--db", required=True)
     export_parser.add_argument("--out", required=True)
     export_parser.set_defaults(func=command_export_llm)
+
+    calibration_parser = subparsers.add_parser("create-calibration-sample", help="create the locked Step 3 calibration sample")
+    calibration_parser.add_argument("--db", required=True)
+    calibration_parser.add_argument("--seed", default="article-blueprint-os-step3-calibration-v1")
+    calibration_parser.add_argument("--prompt-version", default="v1")
+    calibration_parser.set_defaults(func=command_create_calibration)
+
+    calibration_export_parser = subparsers.add_parser("export-calibration-queue", help="export a calibration JSONL queue externally")
+    calibration_export_parser.add_argument("--db", required=True)
+    calibration_export_parser.add_argument("--calibration-id", required=True)
+    calibration_export_parser.add_argument("--out", required=True)
+    calibration_export_parser.set_defaults(func=command_export_calibration)
 
     import_parser = subparsers.add_parser("import-llm-results", help="validate and import LLM JSONL")
     import_parser.add_argument("--db", required=True)

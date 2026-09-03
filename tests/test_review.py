@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 from article_blueprint_os.db import connect, init_db
-from article_blueprint_os.review import sample_no_audit, validate_llm_record
+from article_blueprint_os.review import calibration_stratum, create_calibration_sample, sample_no_audit, validate_llm_record
 
 
 def valid_record(pmid="40000001", relevance="YES"):
@@ -59,6 +59,35 @@ class ReviewTests(unittest.TestCase):
             self.assertEqual(21, result["population"])
             self.assertEqual(3, result["sample_size"])
             connection.close()
+
+    def test_calibration_sample_is_stratified_and_reproducible(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            connection = connect(Path(tempdir) / "test.sqlite3")
+            init_db(connection)
+            connection.execute("PRAGMA foreign_keys = OFF")
+            for index in range(650):
+                pmid = str(60000000 + index)
+                priority = 1 if index < 310 else 0
+                types = '["Review"]' if index >= 510 else '["Journal Article"]'
+                connection.execute("INSERT INTO articles(pmid,journal_key,source_journal_title,publication_date_precision,title,abstract,article_types_json,authors_json,mesh_terms_json,pubmed_url,first_seen_run_id,last_seen_run_id,source_updated_at) VALUES (?, 'j','J','year','t','a',?, '[]','[]','u','r','r','x')", (pmid, types))
+                connection.execute("INSERT INTO deterministic_screens(pmid,rules_version,cancer_hit,omics_hit,candidate_priority,cancer_terms_json,omics_terms_json,screened_at) VALUES (?, 'v1',1,1,?,'[]','[]','x')", (pmid, priority))
+            connection.commit()
+            result = create_calibration_sample(connection, seed="locked")
+            self.assertEqual(300, result["strata"]["candidate_priority"]["selected"])
+            self.assertEqual(200, result["strata"]["non_priority_original_or_unclear"]["selected"])
+            self.assertEqual(100, result["strata"]["obvious_non_original"]["selected"])
+            self.assertEqual(600, connection.execute("SELECT COUNT(*) FROM calibration_sample_items").fetchone()[0])
+            first = connection.execute("SELECT stratum, pmid, hash_rank FROM calibration_sample_items WHERE calibration_id=? ORDER BY stratum, hash_rank", (result["calibration_id"],)).fetchall()
+            repeat = create_calibration_sample(connection, seed="locked")
+            second = connection.execute("SELECT stratum, pmid, hash_rank FROM calibration_sample_items WHERE calibration_id=? ORDER BY stratum, hash_rank", (repeat["calibration_id"],)).fetchall()
+            self.assertEqual([tuple(row) for row in first], [tuple(row) for row in second])
+            connection.close()
+
+    def test_calibration_stratum_uses_screening_non_original_types(self):
+        self.assertEqual("obvious_non_original", calibration_stratum(candidate_priority=False, article_types=["Systematic Review"]))
+        self.assertEqual("non_priority_original_or_unclear", calibration_stratum(candidate_priority=False, article_types=["Journal Article"]))
+        self.assertEqual("non_priority_original_or_unclear", calibration_stratum(candidate_priority=False, article_types=[]))
+        self.assertIsNone(calibration_stratum(candidate_priority=False, article_types=["Randomized Controlled Trial"]))
 
 
 if __name__ == "__main__":
