@@ -206,6 +206,7 @@ class ManualWebTests(unittest.TestCase):
         values = (batch_id, 1, self.calibration_id, "ChatGPT Web UI", "manual", "M", "ui", "human", "v1", "sha", "in", "ih", None, None, 20, 1, "unavailable", "unavailable", "prepared", None, "now", None, None, None)
         self.connection.execute("INSERT INTO manual_web_attempts VALUES (" + ",".join("?" for _ in values) + ")", values)
         self.connection.execute("INSERT INTO manual_web_attempt_items VALUES (?, ?, ?, ?, ?)", (batch_id, 1, manifest["ordered_pmids"][0], 1, None))
+        self.connection.execute("UPDATE schema_meta SET value='5' WHERE key='schema_version'")
         self.connection.commit()
         init_db(self.connection)
         self.assertEqual(1, self.connection.execute("SELECT COUNT(*) FROM manual_web_attempts").fetchone()[0])
@@ -213,6 +214,8 @@ class ManualWebTests(unittest.TestCase):
         self.assertEqual([], self.connection.execute("PRAGMA foreign_key_check").fetchall())
         fk = self.connection.execute("PRAGMA foreign_key_list(manual_web_attempt_items)").fetchall()
         self.assertTrue(any(row[2] == "manual_web_attempts" for row in fk))
+        self.assertEqual("6", self.connection.execute("SELECT value FROM schema_meta WHERE key='schema_version'").fetchone()[0])
+        self.assertEqual({"wrapper_version", "wrapper_sha256"}, {row[1] for row in self.connection.execute("PRAGMA table_info(manual_web_attempts)") if row[1].startswith("wrapper_")})
     def test_model_visible_packet_excludes_sampling_metadata(self) -> None:
         manifest = self.packets()[0]
         input_text = (self.output_root / manifest["batch_id"] / "input.jsonl").read_text()

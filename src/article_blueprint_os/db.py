@@ -289,7 +289,18 @@ def init_db(connection: sqlite3.Connection) -> None:
     row = connection.execute(
         "SELECT sql FROM sqlite_master WHERE type='table' AND name='manual_web_attempts'"
     ).fetchone()
-    if row and "execution_mode = 'manual'" in row[0]:
+    columns = {
+        item[1]
+        for item in connection.execute("PRAGMA table_info(manual_web_attempts)")
+    }
+    # Detect the pre-v6 contract structurally, independent of sqlite_master
+    # whitespace/formatting or how the legacy DDL was generated.
+    needs_attempt_migration = row and (
+        "wrapper_version" not in columns
+        or "wrapper_sha256" not in columns
+        or "automated_browser" not in row[0]
+    )
+    if needs_attempt_migration:
         # Ensure the pragma is applied outside any transaction; otherwise SQLite
         # silently ignores the toggle and can leave the rebuild half-constrained.
         connection.commit()
