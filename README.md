@@ -95,6 +95,12 @@ Validation records every failed and valid attempt separately and imports only
 complete schema-valid records. It does not mark calibration complete or relax
 the independent human-reference and recall gates.
 
+An additional reviewed amendment,
+`docs/STEP3_AUTOMATED_CHATGPT_WEB_EXECUTION_AMENDMENT.md`, defines a controlled
+Chrome UI route for user-authorized upload/read/save automation. It remains
+Web-UI-only and stops on login, bot checks, unexpected navigation, or any
+failure; it does not authorize an API or bypass access controls.
+
 Set `ARTICLE_BLUEPRINT_DATA` to a directory outside this repository. In the
 Stelligen workspace the canonical location is configured through
 `BIOWORKSPACE_ROOT`:
