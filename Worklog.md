@@ -8,14 +8,14 @@ what changed, why, real findings, review history, and the merge commit.
 | Step | Status | PR | Notes |
 |---|---|---:|---|
 | 1. Master Universe and screening foundation | merged | [#1](https://github.com/leezx/ArticleBlueprintOS/pull/1) | Approved; merge commit `90ab9f0` |
-| 2. Historical backfill and coverage validation | in progress | [#2](https://github.com/leezx/ArticleBlueprintOS/pull/2) | Runner merged; real run exposed PubMed 10k limit |
+| 2. Historical backfill and coverage validation | results pending review | [#4](https://github.com/leezx/ArticleBlueprintOS/pull/4) | Runner and both PubMed partition amendments merged; completed run is documented in the results PR |
 | 3. LLM screening calibration and human audit | not started | — | Measure false-negative rate |
 | 4. Full-text triage and lawful retrieval | not started | — | Small reviewed batches only |
 | 5. Blueprint extraction and prospective updates | not started | — | Living corpus and architecture library |
 
-Overall: `16%` engineering completion against the charter definition
-of 100%; scientific corpus readiness remains `0%` until real backfill and audit
-results exist.
+Overall: `45%` provisional engineering completion against the charter
+definition of 100%; scientific corpus readiness remains `0%` until structured
+screening and human audit results exist.
 
 ## 2026-09-02 — Step 1 merged
 
@@ -51,3 +51,15 @@ results exist.
 - **Execution finding**: Nature's non-overlapping date ranges produced
   overlapping PMID result sets (slice counts 15,569 vs full count 15,540), so
   raw slice-count additivity is not a valid completeness gate.
+
+## 2026-09-02 — PubMed date-slice overlap correction merged
+
+- **PR**: [#4 — Step 2: allow overlapping PubMed date slices](https://github.com/leezx/ArticleBlueprintOS/pull/4)
+- **Merge commit**: `0845f4760516f8a10a4f062cf57b6c9cb3731380`
+- **Delivered**: a corrected completeness contract that accepts overlap across
+  date slices only when the distinct PMID union equals PubMed's authoritative
+  full-window count; resume uses stable slice boundaries rather than volatile
+  counts.
+- **Review and validation**: external `APPROVE`; Python 3.11 and 3.12 CI
+  passed. The correction enabled the same provenance-preserving backfill to
+  complete without treating legitimate PubMed date semantics as data loss.

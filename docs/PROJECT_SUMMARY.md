@@ -8,16 +8,16 @@ blueprints from it?
 
 ## Status
 
-Engineering is `16%` complete against the charter's five-step
-definition of 100%. Corpus/scientific readiness is `0%`: the historical
-backfill has not run and no paper has been included or downloaded.
+Engineering is provisionally `45%` complete against the charter's five-step
+definition of 100%; Step 2's results-document PR is its remaining review gate.
+Corpus/scientific readiness is `0%`: no paper has received structured LLM and
+human audit, been included, or been downloaded.
 
-Step 1 was approved and merged as PR #1. The Step 2 runner was approved and
-merged as PR #2. The first real backfill attempt failed closed at PubMed's
-10,000-result access boundary for Nature. PR #3 added reviewed date
-partitioning, whose first run then showed that PubMed date slices can contain
-overlapping PMIDs. A second evidence-based amendment is replacing invalid
-slice-count additivity with the authoritative distinct-PMID union gate.
+Step 1 was approved and merged as PR #1. The Step 2 runner and two
+evidence-based PubMed partitioning amendments were reviewed and merged in
+PRs #2–#4. The full historical backfill now has 67/67 completed journals,
+195,706 distinct metadata records, and zero full-window coverage
+discrepancies. Its aggregate results are awaiting PR review.
 
 ## What's been answered
 
@@ -38,15 +38,13 @@ slice-count additivity with the authoritative distinct-PMID union gate.
 | Workstream | Weight | Completion | Weighted progress | Next gate |
 |---|---:|---:|---:|---|
 | Registry and pipeline foundation | 20% | 100% | 20% | Prospective maintenance later |
-| Historical backfill and coverage | 25% | 0% | 0% | Run locked 2023-01-01–2026-09-02 enumeration |
+| Historical backfill and coverage | 25% | 100% pending results PR | 25% provisional | Review aggregate results |
 | LLM calibration and human audit | 20% | 0% | 0% | Produce reviewed queues |
 | Full-text triage and retrieval | 15% | 0% | 0% | Reviewed paper list |
 | Blueprint extraction and updates | 20% | 0% | 0% | Included full-text corpus |
 
 ## What's still open
 
-- Allow legitimate PMID overlap across PubMed date slices, then resume the
-  existing historical backfill and reconcile distinct-union coverage.
 - Calibrate LLM screening and measure `NO` false negatives — not started.
 - Retrieve lawful full text for reviewed inclusions — not started.
 - Validate blueprint extraction and prospective updates — not started.
@@ -56,6 +54,8 @@ slice-count additivity with the authoritative distinct-PMID union gate.
 
 - Step 1 — Master Universe and screening foundation: merged in PR #1 at
   `90ab9f0812920caca7df9d4ad90c2723e24ea7e2` after external `APPROVE` review.
+- Step 2 — Historical backfill and coverage validation: complete in the
+  external payload store; aggregate results await PR review.
 
 ## Scope boundaries
 
