@@ -87,3 +87,24 @@ audit results exist.
   provenance.
 - **Review and validation**: external `APPROVE` after one P1/P2 correction
   cycle; GitHub Actions Python 3.11 and 3.12 tests passed.
+
+## 2026-09-03 — Step 3 calibration infrastructure merged
+
+- **PR**: [#7 — implement Step 3 calibration and audit infrastructure](https://github.com/leezx/ArticleBlueprintOS/pull/7)
+- **Merge commit**: `a30eaee1af01d1ea08a0dceaa3c838bdfe7a56bd`
+- **Delivered**: deterministic 600-record 300/200/100 calibration sampling,
+  external calibration queue export, versioned sampling provenance, and tests
+  for reproducibility and publication-type boundary handling.
+- **Boundary**: no model route was authorized and no real calibration records
+  were transmitted or classified.
+
+## 2026-09-03 — Manual ChatGPT Web calibration amendment merged
+
+- **PR**: [#8 — amend Step 3 for manual ChatGPT Web calibration](https://github.com/leezx/ArticleBlueprintOS/pull/8)
+- **Merge commit**: `a01b57a60c0bebb8134240ee4647849083b95451`
+- **Delivered**: a reviewed manual-only execution contract covering fresh
+  chats, deterministic 20-record packets, two-stage validation, immutable raw
+  output, attempt-level provenance, and the prohibition on API/browser
+  automation or automatic metadata transmission.
+- **Boundary**: the amendment did not execute the real 600-record calibration;
+  that remains blocked on approval of its separate implementation PR.

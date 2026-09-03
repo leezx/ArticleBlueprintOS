@@ -12,6 +12,7 @@ from .db import connect, init_db
 from .pipeline import enumerate_journal
 from .pubmed import PubMedClient
 from .review import create_calibration_sample, export_calibration_queue, export_llm_queue, import_llm_results, sample_no_audit
+from .manual_web import prepare_web_batches, validate_web_output
 from .screening import screen_database
 
 
@@ -135,6 +136,45 @@ def command_export_calibration(args: argparse.Namespace) -> None:
     finally:
         connection.close()
     _print_json({"calibration_id": args.calibration_id, "rows": count, "output": str(Path(args.out).expanduser().resolve())})
+
+
+def command_prepare_web_batches(args: argparse.Namespace) -> None:
+    connection = _open_db(args.db)
+    try:
+        result = prepare_web_batches(
+            connection,
+            args.calibration_id,
+            args.out,
+            batch_size=args.batch_size,
+            software_revision=args.software_revision,
+        )
+    finally:
+        connection.close()
+    _print_json({"batches": len(result), "batch_ids": [x["batch_id"] for x in result]})
+
+
+def command_validate_web_batch(args: argparse.Namespace) -> None:
+    connection = _open_db(args.db)
+    try:
+        records = validate_web_output(
+            connection,
+            args.manifest,
+            args.output,
+            model_display_name=args.model_display_name,
+            operator=args.operator,
+            fresh_chat_confirmed=args.fresh_chat_confirmed,
+            executed_at=args.executed_at,
+            attempt=args.attempt,
+        )
+    finally:
+        connection.close()
+    _print_json(
+        {
+            "validated": len(records),
+            "manifest": str(Path(args.manifest).expanduser().resolve()),
+            "attempt": args.attempt,
+        }
+    )
 
 
 def command_import_llm(args: argparse.Namespace) -> None:
@@ -283,6 +323,31 @@ def build_parser() -> argparse.ArgumentParser:
     calibration_export_parser.add_argument("--calibration-id", required=True)
     calibration_export_parser.add_argument("--out", required=True)
     calibration_export_parser.set_defaults(func=command_export_calibration)
+
+    web_parser = subparsers.add_parser(
+        "prepare-web-calibration-batches",
+        help="prepare manual-only external Web calibration packets",
+    )
+    web_parser.add_argument("--db", required=True)
+    web_parser.add_argument("--calibration-id", required=True)
+    web_parser.add_argument("--out", required=True)
+    web_parser.add_argument("--batch-size", type=int, default=20)
+    web_parser.add_argument("--software-revision", required=True)
+    web_parser.set_defaults(func=command_prepare_web_batches)
+
+    web_validate_parser = subparsers.add_parser(
+        "validate-web-calibration-batch",
+        help="validate and import one manual Web calibration output",
+    )
+    web_validate_parser.add_argument("--db", required=True)
+    web_validate_parser.add_argument("--manifest", required=True)
+    web_validate_parser.add_argument("--output", required=True)
+    web_validate_parser.add_argument("--model-display-name", required=True)
+    web_validate_parser.add_argument("--operator", required=True)
+    web_validate_parser.add_argument("--executed-at", required=True)
+    web_validate_parser.add_argument("--fresh-chat-confirmed", action="store_true")
+    web_validate_parser.add_argument("--attempt", type=int, default=1)
+    web_validate_parser.set_defaults(func=command_validate_web_batch)
 
     import_parser = subparsers.add_parser("import-llm-results", help="validate and import LLM JSONL")
     import_parser.add_argument("--db", required=True)

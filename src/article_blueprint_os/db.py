@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Iterator
 
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -230,6 +230,35 @@ CREATE TABLE IF NOT EXISTS llm_batch_attempts (
     created_at TEXT NOT NULL,
     completed_at TEXT,
     PRIMARY KEY (batch_id, attempt)
+);
+
+CREATE TABLE IF NOT EXISTS manual_web_attempts (
+    batch_id TEXT NOT NULL, attempt INTEGER NOT NULL,
+    calibration_id TEXT NOT NULL REFERENCES calibration_samples(calibration_id),
+    provider_route TEXT NOT NULL CHECK (provider_route = 'ChatGPT Web UI'),
+    execution_mode TEXT NOT NULL CHECK (execution_mode = 'manual'),
+    model_display_name TEXT, model_identifier_precision TEXT NOT NULL,
+    operator TEXT, prompt_version TEXT NOT NULL, software_revision TEXT NOT NULL,
+    input_path TEXT NOT NULL, input_sha256 TEXT NOT NULL,
+    output_path TEXT, output_sha256 TEXT, record_count INTEGER NOT NULL,
+    fresh_chat_confirmed INTEGER NOT NULL CHECK (fresh_chat_confirmed IN (0,1)),
+    temperature TEXT NOT NULL, maximum_output_tokens TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('prepared','valid','failed')),
+    error TEXT, created_at TEXT NOT NULL, submitted_at TEXT, executed_at TEXT,
+    completed_at TEXT,
+    PRIMARY KEY (batch_id, attempt)
+);
+
+CREATE TABLE IF NOT EXISTS manual_web_attempt_items (
+    batch_id TEXT NOT NULL,
+    attempt INTEGER NOT NULL,
+    pmid TEXT NOT NULL REFERENCES articles(pmid),
+    ordinal INTEGER NOT NULL,
+    llm_screen_id INTEGER REFERENCES llm_screens(id),
+    PRIMARY KEY (batch_id, attempt, pmid),
+    UNIQUE (batch_id, attempt, ordinal),
+    FOREIGN KEY (batch_id, attempt)
+        REFERENCES manual_web_attempts(batch_id, attempt) ON DELETE CASCADE
 );
 """
 
