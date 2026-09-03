@@ -165,6 +165,7 @@ def command_validate_web_batch(args: argparse.Namespace) -> None:
             fresh_chat_confirmed=args.fresh_chat_confirmed,
             executed_at=args.executed_at,
             attempt=args.attempt,
+            execution_mode=args.execution_mode,
         )
     finally:
         connection.close()
@@ -347,6 +348,7 @@ def build_parser() -> argparse.ArgumentParser:
     web_validate_parser.add_argument("--executed-at", required=True)
     web_validate_parser.add_argument("--fresh-chat-confirmed", action="store_true")
     web_validate_parser.add_argument("--attempt", type=int, default=1)
+    web_validate_parser.add_argument("--execution-mode", choices=("manual", "automated_browser"), default="manual")
     web_validate_parser.set_defaults(func=command_validate_web_batch)
 
     import_parser = subparsers.add_parser("import-llm-results", help="validate and import LLM JSONL")

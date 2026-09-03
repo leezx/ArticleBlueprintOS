@@ -109,7 +109,7 @@ class ManualWebTests(unittest.TestCase):
             name,
         )
 
-    def validate(self, manifest_path: Path, output: Path, attempt=1):
+    def validate(self, manifest_path: Path, output: Path, attempt=1, execution_mode="manual"):
         return validate_web_output(
             self.connection,
             manifest_path,
@@ -119,7 +119,19 @@ class ManualWebTests(unittest.TestCase):
             fresh_chat_confirmed=True,
             executed_at="2026-09-03T12:00:00Z",
             attempt=attempt,
+            execution_mode=execution_mode,
         )
+
+    def test_automated_browser_mode_is_audited_without_resetting_attempt(self) -> None:
+        manifest = self.packets()[0]
+        manifest_path = self.manifest_path(manifest)
+        self.validate(manifest_path, self.valid_output(manifest_path), execution_mode="automated_browser")
+        attempt = self.connection.execute(
+            "SELECT execution_mode, status FROM manual_web_attempts WHERE batch_id=? AND attempt=1",
+            (manifest["batch_id"],),
+        ).fetchone()
+        self.assertEqual("automated_browser", attempt["execution_mode"])
+        self.assertEqual("valid", attempt["status"])
 
     def test_600_records_make_30_batches_and_are_reproducible(self) -> None:
         first = self.packets()

@@ -382,6 +382,7 @@ def _record_attempt(
     status: str,
     error: str | None,
     completed_at: str,
+    execution_mode: str,
 ) -> None:
     existing = connection.execute(
         "SELECT status FROM manual_web_attempts WHERE batch_id=? AND attempt=?",
@@ -401,7 +402,7 @@ def _record_attempt(
                 output_sha256, record_count, fresh_chat_confirmed,
                 temperature, maximum_output_tokens, status, error,
                 created_at, submitted_at, executed_at, completed_at
-            ) VALUES (?, ?, ?, 'ChatGPT Web UI', 'manual', ?,
+            ) VALUES (?, ?, ?, 'ChatGPT Web UI', ?, ?,
                       'ui-display-name-only', ?, ?, ?, ?, ?, ?, ?, ?, ?,
                       ?, ?, ?, ?, ?, ?, ?, ?)
             """,
@@ -409,6 +410,7 @@ def _record_attempt(
                 manifest["batch_id"],
                 attempt,
                 manifest["calibration_id"],
+                execution_mode,
                 model_display_name,
                 operator,
                 manifest["prompt_version"],
@@ -444,12 +446,13 @@ def _record_attempt(
         connection.execute(
             """
             UPDATE manual_web_attempts
-            SET model_display_name=?, operator=?, output_path=?,
+            SET execution_mode=?, model_display_name=?, operator=?, output_path=?,
                 output_sha256=?, fresh_chat_confirmed=?, status=?, error=?,
                 submitted_at=?, executed_at=?, completed_at=?
             WHERE batch_id=? AND attempt=? AND status='prepared'
             """,
             (
+                execution_mode,
                 model_display_name,
                 operator,
                 str(output_path),
@@ -534,6 +537,7 @@ def validate_web_output(
     fresh_chat_confirmed: bool,
     executed_at: str,
     attempt: int = 1,
+    execution_mode: str = "manual",
 ) -> list[dict[str, Any]]:
     """Validate immutable raw Web output, record the attempt, then import it."""
     manifest_path = require_outside_repo(manifest_path)
@@ -545,6 +549,8 @@ def validate_web_output(
     _validate_manifest_against_db(connection, manifest)
     if attempt < 1:
         raise ValueError("attempt must be at least 1")
+    if execution_mode not in {"manual", "automated_browser"}:
+        raise ValueError("execution_mode must be manual or automated_browser")
     _validate_attempt_sequence(connection, manifest["batch_id"], attempt)
     existing = connection.execute(
         "SELECT status FROM manual_web_attempts WHERE batch_id=? AND attempt=?",
@@ -618,6 +624,7 @@ def validate_web_output(
                     status="valid",
                     error=None,
                     completed_at=completed_at,
+                    execution_mode=execution_mode,
                 )
                 _import_records(
                     connection,
@@ -643,6 +650,7 @@ def validate_web_output(
                 status="failed",
                 error=error,
                 completed_at=completed_at,
+                execution_mode=execution_mode,
             )
     status = "failed" if error else "valid"
     report = {

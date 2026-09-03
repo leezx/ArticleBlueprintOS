@@ -236,7 +236,7 @@ CREATE TABLE IF NOT EXISTS manual_web_attempts (
     batch_id TEXT NOT NULL, attempt INTEGER NOT NULL,
     calibration_id TEXT NOT NULL REFERENCES calibration_samples(calibration_id),
     provider_route TEXT NOT NULL CHECK (provider_route = 'ChatGPT Web UI'),
-    execution_mode TEXT NOT NULL CHECK (execution_mode = 'manual'),
+    execution_mode TEXT NOT NULL CHECK (execution_mode IN ('manual', 'automated_browser')),
     model_display_name TEXT, model_identifier_precision TEXT NOT NULL,
     operator TEXT, prompt_version TEXT NOT NULL, software_revision TEXT NOT NULL,
     input_path TEXT NOT NULL, input_sha256 TEXT NOT NULL,
@@ -285,6 +285,17 @@ def connect(path: str | Path) -> sqlite3.Connection:
 
 def init_db(connection: sqlite3.Connection) -> None:
     connection.executescript(SCHEMA_SQL)
+    row = connection.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='manual_web_attempts'"
+    ).fetchone()
+    if row and "execution_mode = 'manual'" in row[0]:
+        connection.execute("ALTER TABLE manual_web_attempts RENAME TO manual_web_attempts_legacy")
+        connection.execute(SCHEMA_SQL.split("CREATE TABLE IF NOT EXISTS manual_web_attempts (")[1].split(");", 1)[0].join(("CREATE TABLE manual_web_attempts (", ");")))
+        connection.execute(
+            "INSERT INTO manual_web_attempts SELECT * FROM manual_web_attempts_legacy"
+        )
+        connection.execute("DROP TABLE manual_web_attempts_legacy")
+    connection.commit()
     connection.execute(
         "INSERT INTO schema_meta(key, value) VALUES('schema_version', ?) "
         "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
