@@ -8,8 +8,8 @@ blueprints from it?
 
 ## Status
 
-Engineering is `45%` complete against the charter's five-step definition of
-100%. Step 2 is closed; Step 3 design and calibration are next.
+Engineering is `50%` complete against the charter's five-step definition of
+100%. Step 2 is closed; Step 3's manual execution packets are prepared.
 Corpus/scientific readiness is `0%`: no paper has received structured LLM and
 human audit, been included, or been downloaded.
 
@@ -18,10 +18,12 @@ evidence-based PubMed partitioning amendments were reviewed and merged in
 PRs #2–#4. The full historical backfill now has 67/67 completed journals,
 195,706 distinct metadata records, and zero full-window coverage
 discrepancies. Its aggregate results were approved and merged in PR #5.
-Step 3's design and calibration-sample infrastructure were approved and merged
-in PRs #6 and #7. PR #8 approved a human-mediated ChatGPT Web route for the
-600-record calibration; the separate bridge implementation remains under
-review and no real calibration output has been accepted.
+Step 3's design, calibration-sample infrastructure, manual Web amendment, and
+bridge implementation were approved and merged in PRs #6–#9. The external
+SQLite schema now contains calibration
+`425cf5b3-b150-43ed-80bf-b9226397e73b`, split into 30 deterministic packets of
+20 records under the canonical data root. No real calibration output has been
+transmitted or accepted.
 
 ## What's been answered
 
@@ -43,7 +45,7 @@ review and no real calibration output has been accepted.
 |---|---:|---:|---:|---|
 | Registry and pipeline foundation | 20% | 100% | 20% | Prospective maintenance later |
 | Historical backfill and coverage | 25% | 100% | 25% | Prospective maintenance later |
-| LLM calibration and human audit | 20% | 0% | 0% | Produce reviewed queues |
+| LLM calibration and human audit | 20% | 25% | 5% | Human-execute and validate 30 Web packets |
 | Full-text triage and retrieval | 15% | 0% | 0% | Reviewed paper list |
 | Blueprint extraction and updates | 20% | 0% | 0% | Included full-text corpus |
 

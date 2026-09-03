@@ -108,3 +108,16 @@ audit results exist.
   automation or automatic metadata transmission.
 - **Boundary**: the amendment did not execute the real 600-record calibration;
   that remains blocked on approval of its separate implementation PR.
+
+## 2026-09-03 — Manual ChatGPT Web calibration bridge merged
+
+- **PR**: [#9 — add manual ChatGPT Web calibration bridge](https://github.com/leezx/ArticleBlueprintOS/pull/9)
+- **Merge commit**: `8f83048`
+- **Review and validation**: external ChatGPT `APPROVE`; GitHub Actions
+  Python 3.11 and 3.12 tests passed at head `0aa658b`.
+- **Execution**: initialized the external SQLite schema, created calibration
+  `425cf5b3-b150-43ed-80bf-b9226397e73b`, and prepared 30 deterministic
+  20-record packets (600 records total) under the canonical data root.
+- **Boundary**: no article metadata was transmitted to ChatGPT and no
+  calibration result was accepted; each packet remains pending manual
+  fresh-chat execution and local validation.
