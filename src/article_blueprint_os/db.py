@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Iterator
 
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -197,6 +197,39 @@ CREATE TABLE IF NOT EXISTS backfill_coverage_checks (
     status TEXT NOT NULL CHECK (status IN ('match', 'discrepancy')),
     checked_at TEXT NOT NULL,
     PRIMARY KEY (backfill_id, journal_key, scope, period_start, period_end)
+);
+
+CREATE TABLE IF NOT EXISTS calibration_samples (
+    calibration_id TEXT PRIMARY KEY,
+    seed TEXT NOT NULL,
+    prompt_version TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS calibration_sample_items (
+    calibration_id TEXT NOT NULL REFERENCES calibration_samples(calibration_id) ON DELETE CASCADE,
+    pmid TEXT NOT NULL REFERENCES articles(pmid) ON DELETE CASCADE,
+    stratum TEXT NOT NULL CHECK (stratum IN ('candidate_priority', 'non_priority_original_or_unclear', 'obvious_non_original')),
+    population_size INTEGER NOT NULL,
+    hash_rank TEXT NOT NULL,
+    selected_at TEXT NOT NULL,
+    PRIMARY KEY (calibration_id, pmid)
+);
+
+CREATE TABLE IF NOT EXISTS llm_batch_attempts (
+    batch_id TEXT NOT NULL,
+    attempt INTEGER NOT NULL,
+    input_path TEXT NOT NULL,
+    input_sha256 TEXT NOT NULL,
+    output_path TEXT,
+    output_sha256 TEXT,
+    model TEXT NOT NULL,
+    prompt_version TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('pending', 'complete', 'failed')),
+    error TEXT,
+    created_at TEXT NOT NULL,
+    completed_at TEXT,
+    PRIMARY KEY (batch_id, attempt)
 );
 """
 

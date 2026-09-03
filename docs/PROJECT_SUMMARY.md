@@ -18,6 +18,8 @@ evidence-based PubMed partitioning amendments were reviewed and merged in
 PRs #2–#4. The full historical backfill now has 67/67 completed journals,
 195,706 distinct metadata records, and zero full-window coverage
 discrepancies. Its aggregate results were approved and merged in PR #5.
+Step 3's design was approved and merged in PR #6; its implementation is now
+limited to calibration infrastructure until an approved model route is used.
 
 ## What's been answered
 

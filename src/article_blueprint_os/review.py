@@ -11,6 +11,37 @@ from typing import Any
 
 from .db import require_outside_repo
 from .pubmed import utc_now
+from .screening import NON_ORIGINAL_TYPES
+
+
+CALIBRATION_STRATA = (
+    ("candidate_priority", 300),
+    ("non_priority_original_or_unclear", 200),
+    ("obvious_non_original", 100),
+)
+
+# Explicit, versioned sampling-frame classifier for the approved Step 3 design.
+# A record with no publication type is retained as ``unclear`` rather than
+# silently treated as original; known non-original types always take precedence.
+ORIGINAL_OR_UNCLEAR_TYPES = frozenset(
+    {
+        "journal article", "clinical trial", "clinical trial, phase i",
+        "clinical trial, phase ii", "clinical trial, phase iii",
+        "clinical trial, phase iv", "comparative study", "evaluation study",
+        "observational study", "validation study", "multicenter study",
+    }
+)
+
+
+def calibration_stratum(*, candidate_priority: bool, article_types: list[str]) -> str | None:
+    normalized = {value.casefold() for value in article_types}
+    if candidate_priority:
+        return "candidate_priority"
+    if normalized & NON_ORIGINAL_TYPES:
+        return "obvious_non_original"
+    if not normalized or normalized & ORIGINAL_OR_UNCLEAR_TYPES:
+        return "non_priority_original_or_unclear"
+    return None
 
 
 ENUMS = {
@@ -115,6 +146,72 @@ def export_llm_queue(connection: sqlite3.Connection, path: str | Path) -> int:
             payload["mesh_terms"] = json.loads(payload.pop("mesh_terms_json"))
             payload["candidate_priority"] = bool(payload["candidate_priority"])
             handle.write(json.dumps(payload, ensure_ascii=False, sort_keys=True) + "\n")
+    return len(rows)
+
+
+def create_calibration_sample(
+    connection: sqlite3.Connection,
+    *,
+    seed: str = "article-blueprint-os-step3-calibration-v1",
+    prompt_version: str = "v1",
+) -> dict[str, Any]:
+    """Create the reviewed, deterministic 300/200/100 metadata calibration set."""
+    rows = connection.execute(
+        """
+        WITH latest_rules AS (
+            SELECT *, ROW_NUMBER() OVER (
+                PARTITION BY pmid ORDER BY screened_at DESC, rules_version DESC
+            ) AS rn FROM deterministic_screens
+        )
+        SELECT a.pmid, a.article_types_json, COALESCE(ds.candidate_priority, 0) AS candidate_priority
+        FROM articles a LEFT JOIN latest_rules ds ON ds.pmid=a.pmid AND ds.rn=1
+        """
+    ).fetchall()
+    buckets: dict[str, list[str]] = {name: [] for name, _ in CALIBRATION_STRATA}
+    for row in rows:
+        stratum = calibration_stratum(
+            candidate_priority=bool(row["candidate_priority"]),
+            article_types=json.loads(row["article_types_json"]),
+        )
+        if stratum is not None:
+            buckets[stratum].append(row["pmid"])
+    calibration_id = str(uuid.uuid4())
+    selected_at = utc_now()
+    with connection:
+        connection.execute(
+            "INSERT INTO calibration_samples(calibration_id, seed, prompt_version, created_at) VALUES (?, ?, ?, ?)",
+            (calibration_id, seed, prompt_version, selected_at),
+        )
+        for stratum, requested in CALIBRATION_STRATA:
+            ranked = sorted((hashlib.sha256(f"{seed}:{pmid}".encode()).hexdigest(), pmid) for pmid in buckets[stratum])
+            if len(ranked) < requested:
+                raise ValueError(f"Insufficient {stratum} records: {len(ranked)} < {requested}")
+            connection.executemany(
+                """
+                INSERT INTO calibration_sample_items(calibration_id, pmid, stratum, population_size, hash_rank, selected_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                [(calibration_id, pmid, stratum, len(ranked), rank, selected_at) for rank, pmid in ranked[:requested]],
+            )
+    return {"calibration_id": calibration_id, "seed": seed, "prompt_version": prompt_version,
+            "strata": {name: {"population": len(buckets[name]), "selected": requested} for name, requested in CALIBRATION_STRATA}}
+
+
+def export_calibration_queue(connection: sqlite3.Connection, calibration_id: str, path: str | Path) -> int:
+    output = require_outside_repo(path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    rows = connection.execute(
+        """SELECT a.pmid,a.doi,a.journal_key,a.publication_date,a.title,a.abstract,
+                  a.article_types_json,a.mesh_terms_json,i.stratum,i.population_size,i.hash_rank
+           FROM calibration_sample_items i JOIN articles a ON a.pmid=i.pmid
+           WHERE i.calibration_id=? ORDER BY i.stratum,i.hash_rank""", (calibration_id,)
+    ).fetchall()
+    with output.open("w", encoding="utf-8") as handle:
+        for row in rows:
+            item = dict(row)
+            item["article_types"] = json.loads(item.pop("article_types_json"))
+            item["mesh_terms"] = json.loads(item.pop("mesh_terms_json"))
+            handle.write(json.dumps(item, ensure_ascii=False, sort_keys=True) + "\n")
     return len(rows)
 
 

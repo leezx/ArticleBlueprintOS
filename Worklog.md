@@ -76,3 +76,14 @@ audit results exist.
   and 3.12 tests passed. The 159 annual diagnostic discrepancies remain
   explicitly carried forward as provenance observations, not hidden or forced
   into an invalid completeness rule.
+
+## 2026-09-03 — Step 3 design merged
+
+- **PR**: [#6 — design Step 3 LLM calibration and audit](https://github.com/leezx/ArticleBlueprintOS/pull/6)
+- **Merge commit**: `e25182d68aff62b55eea7a6242a37bbe407caeba`
+- **Delivered**: a design-first, metadata-only calibration and human-audit
+  protocol with weighted false-negative-risk estimation, a locked human
+  annotation rubric, and separate first-attempt versus retry-completion
+  provenance.
+- **Review and validation**: external `APPROVE` after one P1/P2 correction
+  cycle; GitHub Actions Python 3.11 and 3.12 tests passed.
