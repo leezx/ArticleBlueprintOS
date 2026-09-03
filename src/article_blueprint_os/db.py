@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Iterator
 
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -241,6 +241,7 @@ CREATE TABLE IF NOT EXISTS manual_web_attempts (
     operator TEXT, prompt_version TEXT NOT NULL, software_revision TEXT NOT NULL,
     input_path TEXT NOT NULL, input_sha256 TEXT NOT NULL,
     output_path TEXT, output_sha256 TEXT, record_count INTEGER NOT NULL,
+    wrapper_version TEXT, wrapper_sha256 TEXT,
     fresh_chat_confirmed INTEGER NOT NULL CHECK (fresh_chat_confirmed IN (0,1)),
     temperature TEXT NOT NULL, maximum_output_tokens TEXT NOT NULL,
     status TEXT NOT NULL CHECK (status IN ('prepared','valid','failed')),
@@ -289,12 +290,54 @@ def init_db(connection: sqlite3.Connection) -> None:
         "SELECT sql FROM sqlite_master WHERE type='table' AND name='manual_web_attempts'"
     ).fetchone()
     if row and "execution_mode = 'manual'" in row[0]:
-        connection.execute("ALTER TABLE manual_web_attempts RENAME TO manual_web_attempts_legacy")
-        connection.execute(SCHEMA_SQL.split("CREATE TABLE IF NOT EXISTS manual_web_attempts (")[1].split(");", 1)[0].join(("CREATE TABLE manual_web_attempts (", ");")))
-        connection.execute(
-            "INSERT INTO manual_web_attempts SELECT * FROM manual_web_attempts_legacy"
-        )
-        connection.execute("DROP TABLE manual_web_attempts_legacy")
+        # Ensure the pragma is applied outside any transaction; otherwise SQLite
+        # silently ignores the toggle and can leave the rebuild half-constrained.
+        connection.commit()
+        connection.execute("PRAGMA foreign_keys=OFF")
+        connection.execute("BEGIN")
+        try:
+            connection.execute("ALTER TABLE manual_web_attempt_items RENAME TO manual_web_attempt_items_legacy")
+            connection.execute("ALTER TABLE manual_web_attempts RENAME TO manual_web_attempts_legacy")
+            connection.execute("""CREATE TABLE manual_web_attempts (
+                batch_id TEXT NOT NULL, attempt INTEGER NOT NULL,
+                calibration_id TEXT NOT NULL REFERENCES calibration_samples(calibration_id),
+                provider_route TEXT NOT NULL CHECK (provider_route = 'ChatGPT Web UI'),
+                execution_mode TEXT NOT NULL CHECK (execution_mode IN ('manual', 'automated_browser')),
+                model_display_name TEXT, model_identifier_precision TEXT NOT NULL,
+                operator TEXT, prompt_version TEXT NOT NULL, software_revision TEXT NOT NULL,
+                input_path TEXT NOT NULL, input_sha256 TEXT NOT NULL, output_path TEXT,
+                output_sha256 TEXT, record_count INTEGER NOT NULL,
+                wrapper_version TEXT, wrapper_sha256 TEXT,
+                fresh_chat_confirmed INTEGER NOT NULL CHECK (fresh_chat_confirmed IN (0,1)),
+                temperature TEXT NOT NULL, maximum_output_tokens TEXT NOT NULL,
+                status TEXT NOT NULL CHECK (status IN ('prepared','valid','failed')),
+                error TEXT, created_at TEXT NOT NULL, submitted_at TEXT, executed_at TEXT,
+                completed_at TEXT, PRIMARY KEY (batch_id, attempt))""")
+            connection.execute("""INSERT INTO manual_web_attempts
+                SELECT batch_id,attempt,calibration_id,provider_route,execution_mode,
+                model_display_name,model_identifier_precision,operator,prompt_version,
+                software_revision,input_path,input_sha256,output_path,output_sha256,
+                record_count,NULL,NULL,fresh_chat_confirmed,temperature,
+                maximum_output_tokens,status,error,created_at,submitted_at,executed_at,completed_at
+                FROM manual_web_attempts_legacy""")
+            connection.execute("""CREATE TABLE manual_web_attempt_items (
+                batch_id TEXT NOT NULL, attempt INTEGER NOT NULL,
+                pmid TEXT NOT NULL REFERENCES articles(pmid), ordinal INTEGER NOT NULL,
+                llm_screen_id INTEGER REFERENCES llm_screens(id),
+                PRIMARY KEY (batch_id, attempt, pmid), UNIQUE (batch_id, attempt, ordinal),
+                FOREIGN KEY (batch_id, attempt) REFERENCES manual_web_attempts(batch_id, attempt) ON DELETE CASCADE)""")
+            connection.execute("INSERT INTO manual_web_attempt_items SELECT * FROM manual_web_attempt_items_legacy")
+            connection.execute("DROP TABLE manual_web_attempt_items_legacy")
+            connection.execute("DROP TABLE manual_web_attempts_legacy")
+            violations = connection.execute("PRAGMA foreign_key_check").fetchall()
+            if violations:
+                raise RuntimeError(f"foreign-key check failed during schema migration: {violations}")
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.execute("PRAGMA foreign_keys=ON")
     connection.commit()
     connection.execute(
         "INSERT INTO schema_meta(key, value) VALUES('schema_version', ?) "

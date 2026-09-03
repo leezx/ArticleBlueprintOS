@@ -38,6 +38,8 @@ MODEL_VISIBLE_FIELDS = frozenset(
     {"pmid", "doi", "title", "abstract", "article_types", "mesh_terms"}
 )
 UNAVAILABLE = "unavailable_not_exposed_by_ui"
+AUTOMATED_WRAPPER_VERSION = "ABOS-WEB-WRAPPER-v1"
+AUTOMATED_WRAPPER_TEXT = "ABOS-WEB-WRAPPER-v1: Execute the attached web_prompt.txt exactly."
 
 
 def _now() -> str:
@@ -383,6 +385,8 @@ def _record_attempt(
     error: str | None,
     completed_at: str,
     execution_mode: str,
+    wrapper_version: str | None = None,
+    wrapper_sha256: str | None = None,
 ) -> None:
     existing = connection.execute(
         "SELECT status FROM manual_web_attempts WHERE batch_id=? AND attempt=?",
@@ -399,12 +403,12 @@ def _record_attempt(
                 execution_mode, model_display_name,
                 model_identifier_precision, operator, prompt_version,
                 software_revision, input_path, input_sha256, output_path,
-                output_sha256, record_count, fresh_chat_confirmed,
+                output_sha256, record_count, wrapper_version, wrapper_sha256,
+                fresh_chat_confirmed,
                 temperature, maximum_output_tokens, status, error,
                 created_at, submitted_at, executed_at, completed_at
-            ) VALUES (?, ?, ?, 'ChatGPT Web UI', ?, ?,
-                      'ui-display-name-only', ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                      ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, 'ChatGPT Web UI', ?, ?, 'ui-display-name-only',
+                      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 manifest["batch_id"],
@@ -420,6 +424,8 @@ def _record_attempt(
                 str(output_path),
                 output_sha256,
                 manifest["record_count"],
+                wrapper_version,
+                wrapper_sha256,
                 int(fresh_chat_confirmed),
                 UNAVAILABLE,
                 UNAVAILABLE,
@@ -430,6 +436,10 @@ def _record_attempt(
                 executed_at,
                 completed_at,
             ),
+        )
+        connection.execute(
+            "UPDATE manual_web_attempts SET wrapper_version=?, wrapper_sha256=? WHERE batch_id=? AND attempt=?",
+            (wrapper_version, wrapper_sha256, manifest["batch_id"], attempt),
         )
         connection.executemany(
             """
@@ -466,6 +476,10 @@ def _record_attempt(
                 manifest["batch_id"],
                 attempt,
             ),
+        )
+        connection.execute(
+            "UPDATE manual_web_attempts SET wrapper_version=?, wrapper_sha256=? WHERE batch_id=? AND attempt=?",
+            (wrapper_version, wrapper_sha256, manifest["batch_id"], attempt),
         )
 
 
@@ -551,6 +565,11 @@ def validate_web_output(
         raise ValueError("attempt must be at least 1")
     if execution_mode not in {"manual", "automated_browser"}:
         raise ValueError("execution_mode must be manual or automated_browser")
+    wrapper_version = None
+    wrapper_sha256 = None
+    if execution_mode == "automated_browser":
+        wrapper_version = AUTOMATED_WRAPPER_VERSION
+        wrapper_sha256 = hashlib.sha256(AUTOMATED_WRAPPER_TEXT.encode()).hexdigest()
     _validate_attempt_sequence(connection, manifest["batch_id"], attempt)
     existing = connection.execute(
         "SELECT status FROM manual_web_attempts WHERE batch_id=? AND attempt=?",
@@ -625,6 +644,8 @@ def validate_web_output(
                     error=None,
                     completed_at=completed_at,
                     execution_mode=execution_mode,
+                    wrapper_version=wrapper_version,
+                    wrapper_sha256=wrapper_sha256,
                 )
                 _import_records(
                     connection,
@@ -651,6 +672,8 @@ def validate_web_output(
                 error=error,
                 completed_at=completed_at,
                 execution_mode=execution_mode,
+                wrapper_version=wrapper_version,
+                wrapper_sha256=wrapper_sha256,
             )
     status = "failed" if error else "valid"
     report = {
