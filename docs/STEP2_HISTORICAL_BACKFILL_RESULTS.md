@@ -70,7 +70,7 @@ charter.
 
 The repository test suite passes with 21 tests, and the reviewed Python 3.11
 and 3.12 CI workflow remains the implementation validation. Step 2's data
-acceptance gates are now satisfied; its results-document PR remains the final
-review gate before the step is recorded as closed. The next step is LLM
-screening calibration plus human audit, beginning with a separately reviewed
-design and no full-text retrieval.
+acceptance gates were approved and merged in PR #5 at
+`3b481b61696e7349836cbbd7673adb6ba9c8c37a`. The next step is LLM screening
+calibration plus human audit, beginning with a separately reviewed design and
+no full-text retrieval.
