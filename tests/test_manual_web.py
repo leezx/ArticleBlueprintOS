@@ -6,6 +6,8 @@ from unittest.mock import patch
 
 from article_blueprint_os.db import connect, init_db
 from article_blueprint_os.manual_web import (
+    AUTOMATED_WRAPPER_VERSION,
+    AUTOMATED_WRAPPER_TEXT,
     MODEL_VISIBLE_FIELDS,
     SEMANTIC_FIELDS,
     prepare_web_batches,
@@ -37,6 +39,10 @@ class ManualWebTests(unittest.TestCase):
         self.connection = connect(self.db)
         init_db(self.connection)
         self.connection.execute("PRAGMA foreign_keys=OFF")
+        self.connection.execute(
+            "INSERT INTO enumeration_runs(run_id,journal_key,journal_title,registry_version,query,start_date,end_date,status,started_at,completed_at) "
+            "VALUES ('r','j','J','v1','q','2020-01-01','2020-12-31','complete','now','now')"
+        )
         self.calibration_id = "calibration-test"
         self.connection.execute(
             "INSERT INTO calibration_samples VALUES (?, 'seed', 'v1', 'now')",
@@ -109,7 +115,7 @@ class ManualWebTests(unittest.TestCase):
             name,
         )
 
-    def validate(self, manifest_path: Path, output: Path, attempt=1):
+    def validate(self, manifest_path: Path, output: Path, attempt=1, execution_mode="manual"):
         return validate_web_output(
             self.connection,
             manifest_path,
@@ -119,7 +125,41 @@ class ManualWebTests(unittest.TestCase):
             fresh_chat_confirmed=True,
             executed_at="2026-09-03T12:00:00Z",
             attempt=attempt,
+            execution_mode=execution_mode,
         )
+
+    def test_automated_browser_mode_is_audited_without_resetting_attempt(self) -> None:
+        manifest = self.packets()[0]
+        manifest_path = self.manifest_path(manifest)
+        self.validate(manifest_path, self.valid_output(manifest_path), execution_mode="automated_browser")
+        attempt = self.connection.execute(
+            "SELECT execution_mode, status, wrapper_version, wrapper_sha256 FROM manual_web_attempts WHERE batch_id=? AND attempt=1",
+            (manifest["batch_id"],),
+        ).fetchone()
+        self.assertEqual("automated_browser", attempt["execution_mode"])
+        self.assertEqual("valid", attempt["status"])
+        self.assertEqual(AUTOMATED_WRAPPER_VERSION, attempt["wrapper_version"])
+        import hashlib
+        self.assertEqual(hashlib.sha256(AUTOMATED_WRAPPER_TEXT.encode()).hexdigest(), attempt["wrapper_sha256"])
+
+    def test_failed_manual_then_valid_automated_attempt_preserves_modes(self) -> None:
+        manifest = self.packets()[0]
+        manifest_path = self.manifest_path(manifest)
+        bad = manifest_path.parent / "bad-cross-mode.txt"
+        bad.write_text("not-json\n")
+        with self.assertRaises(ValueError):
+            self.validate(manifest_path, bad, attempt=1, execution_mode="manual")
+        self.validate(
+            manifest_path,
+            self.valid_output(manifest_path, "valid-cross-mode.txt"),
+            attempt=2,
+            execution_mode="automated_browser",
+        )
+        rows = self.connection.execute(
+            "SELECT attempt, execution_mode, status FROM manual_web_attempts WHERE batch_id=? ORDER BY attempt",
+            (manifest["batch_id"],),
+        ).fetchall()
+        self.assertEqual([(1, "manual", "failed"), (2, "automated_browser", "valid")], [tuple(row) for row in rows])
 
     def test_600_records_make_30_batches_and_are_reproducible(self) -> None:
         first = self.packets()
@@ -134,12 +174,48 @@ class ManualWebTests(unittest.TestCase):
             [item["ordered_pmids"] for item in second],
         )
         self.assertEqual(
-            30,
-            self.connection.execute(
-                "SELECT COUNT(*) FROM manual_web_attempts"
-            ).fetchone()[0],
+            30, self.connection.execute("SELECT COUNT(*) FROM manual_web_attempts").fetchone()[0]
         )
 
+    def test_schema_migration_preserves_prepared_attempt_and_child_rows(self) -> None:
+        manifest = self.packets()[0]
+        batch_id = manifest["batch_id"]
+        self.connection.execute("PRAGMA foreign_keys=OFF")
+        self.connection.execute("DROP TABLE manual_web_attempt_items")
+        self.connection.execute("DROP TABLE manual_web_attempts")
+        self.connection.execute("""CREATE TABLE manual_web_attempts(
+            batch_id TEXT NOT NULL, attempt INTEGER NOT NULL,
+            calibration_id TEXT NOT NULL REFERENCES calibration_samples(calibration_id),
+            provider_route TEXT NOT NULL CHECK(provider_route='ChatGPT Web UI'),
+            execution_mode TEXT NOT NULL CHECK(execution_mode='manual'),
+            model_display_name TEXT, model_identifier_precision TEXT NOT NULL,
+            operator TEXT, prompt_version TEXT NOT NULL, software_revision TEXT NOT NULL,
+            input_path TEXT NOT NULL, input_sha256 TEXT NOT NULL, output_path TEXT,
+            output_sha256 TEXT, record_count INTEGER NOT NULL,
+            fresh_chat_confirmed INTEGER NOT NULL CHECK(fresh_chat_confirmed IN(0,1)),
+            temperature TEXT NOT NULL, maximum_output_tokens TEXT NOT NULL,
+            status TEXT NOT NULL CHECK(status IN('prepared','valid','failed')),
+            error TEXT, created_at TEXT NOT NULL, submitted_at TEXT, executed_at TEXT,
+            completed_at TEXT, PRIMARY KEY(batch_id,attempt))""")
+        self.connection.execute("""CREATE TABLE manual_web_attempt_items(
+            batch_id TEXT NOT NULL, attempt INTEGER NOT NULL,
+            pmid TEXT NOT NULL REFERENCES articles(pmid), ordinal INTEGER NOT NULL,
+            llm_screen_id INTEGER REFERENCES llm_screens(id),
+            PRIMARY KEY(batch_id,attempt,pmid), UNIQUE(batch_id,attempt,ordinal),
+            FOREIGN KEY(batch_id,attempt) REFERENCES manual_web_attempts(batch_id,attempt) ON DELETE CASCADE)""")
+        values = (batch_id, 1, self.calibration_id, "ChatGPT Web UI", "manual", "M", "ui", "human", "v1", "sha", "in", "ih", None, None, 20, 1, "unavailable", "unavailable", "prepared", None, "now", None, None, None)
+        self.connection.execute("INSERT INTO manual_web_attempts VALUES (" + ",".join("?" for _ in values) + ")", values)
+        self.connection.execute("INSERT INTO manual_web_attempt_items VALUES (?, ?, ?, ?, ?)", (batch_id, 1, manifest["ordered_pmids"][0], 1, None))
+        self.connection.execute("UPDATE schema_meta SET value='5' WHERE key='schema_version'")
+        self.connection.commit()
+        init_db(self.connection)
+        self.assertEqual(1, self.connection.execute("SELECT COUNT(*) FROM manual_web_attempts").fetchone()[0])
+        self.assertEqual(1, self.connection.execute("SELECT COUNT(*) FROM manual_web_attempt_items").fetchone()[0])
+        self.assertEqual([], self.connection.execute("PRAGMA foreign_key_check").fetchall())
+        fk = self.connection.execute("PRAGMA foreign_key_list(manual_web_attempt_items)").fetchall()
+        self.assertTrue(any(row[2] == "manual_web_attempts" for row in fk))
+        self.assertEqual("6", self.connection.execute("SELECT value FROM schema_meta WHERE key='schema_version'").fetchone()[0])
+        self.assertEqual({"wrapper_version", "wrapper_sha256"}, {row[1] for row in self.connection.execute("PRAGMA table_info(manual_web_attempts)") if row[1].startswith("wrapper_")})
     def test_model_visible_packet_excludes_sampling_metadata(self) -> None:
         manifest = self.packets()[0]
         input_text = (self.output_root / manifest["batch_id"] / "input.jsonl").read_text()
