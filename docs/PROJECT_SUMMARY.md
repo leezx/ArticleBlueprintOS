@@ -8,22 +8,26 @@ blueprints from it?
 
 ## Status
 
-Engineering is `50%` complete against the charter's five-step definition of
-100%. Step 2 is closed; Step 3's manual execution packets are prepared.
-Corpus/scientific readiness is `0%`: no paper has received structured LLM and
-human audit, been included, or been downloaded.
+Engineering is `55%` complete against the charter's five-step definition of
+100%. Step 2 is closed; Step 3's 600-record Web calibration execution is
+complete, while human audit remains open. Corpus/scientific readiness is
+`10%`: all calibration papers have received a validated structured LLM screen,
+but no paper has received human audit, been included, or been downloaded.
 
 Step 1 was approved and merged as PR #1. The Step 2 runner and two
 evidence-based PubMed partitioning amendments were reviewed and merged in
 PRs #2–#4. The full historical backfill now has 67/67 completed journals,
 195,706 distinct metadata records, and zero full-window coverage
 discrepancies. Its aggregate results were approved and merged in PR #5.
-Step 3's design, calibration-sample infrastructure, manual Web amendment, and
-bridge implementation were approved and merged in PRs #6–#9. The external
-SQLite schema now contains calibration
-`425cf5b3-b150-43ed-80bf-b9226397e73b`, split into 30 deterministic packets of
-20 records under the canonical data root. No real calibration output has been
-transmitted or accepted.
+Step 3's design, calibration-sample infrastructure, manual Web amendment,
+bridge implementation, controlled-browser workflow, and automated-browser
+audit trail were approved and merged in PRs #6–#12. Calibration
+`425cf5b3-b150-43ed-80bf-b9226397e73b` has now completed all 30 deterministic
+Web packets (600 records) under the canonical data root. All 30 attempts passed
+schema and manifest validation and were imported with execution provenance.
+The model assigned 144 `YES`, 36 `MAYBE`, and 420 `NO` decisions. Human audit
+has not started, so these are prioritization labels rather than final corpus
+exclusions.
 
 ## What's been answered
 
@@ -45,13 +49,13 @@ transmitted or accepted.
 |---|---:|---:|---:|---|
 | Registry and pipeline foundation | 20% | 100% | 20% | Prospective maintenance later |
 | Historical backfill and coverage | 25% | 100% | 25% | Prospective maintenance later |
-| LLM calibration and human audit | 20% | 25% | 5% | Human-execute and validate 30 Web packets |
+| LLM calibration and human audit | 20% | 60% | 12% | Human-label calibration sample and audit model decisions |
 | Full-text triage and retrieval | 15% | 0% | 0% | Reviewed paper list |
 | Blueprint extraction and updates | 20% | 0% | 0% | Included full-text corpus |
 
 ## What's still open
 
-- Calibrate LLM screening and measure `NO` false negatives — not started.
+- Human-label the calibration sample and measure `NO` false negatives — not started.
 - Retrieve lawful full text for reviewed inclusions — not started.
 - Validate blueprint extraction and prospective updates — not started.
 - Add baseline CI, a non-blocking Step 1 review observation.
