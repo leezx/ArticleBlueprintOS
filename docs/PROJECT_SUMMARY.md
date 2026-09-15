@@ -8,22 +8,41 @@ blueprints from it?
 
 ## Status
 
-Engineering is `50%` complete against the charter's five-step definition of
-100%. Step 2 is closed; Step 3's manual execution packets are prepared.
-Corpus/scientific readiness is `0%`: no paper has received structured LLM and
-human audit, been included, or been downloaded.
+Engineering is `55%` complete against the charter's five-step definition of
+100%. Step 2 is closed; Step 3's 600-record Web model-execution phase is
+complete, while reference-standard annotation and calibration assessment
+remain open. Corpus/scientific readiness remains `0%`: no paper has received
+human reference review, been included, or been downloaded.
 
 Step 1 was approved and merged as PR #1. The Step 2 runner and two
 evidence-based PubMed partitioning amendments were reviewed and merged in
 PRs #2–#4. The full historical backfill now has 67/67 completed journals,
 195,706 distinct metadata records, and zero full-window coverage
 discrepancies. Its aggregate results were approved and merged in PR #5.
-Step 3's design, calibration-sample infrastructure, manual Web amendment, and
-bridge implementation were approved and merged in PRs #6–#9. The external
-SQLite schema now contains calibration
-`425cf5b3-b150-43ed-80bf-b9226397e73b`, split into 30 deterministic packets of
-20 records under the canonical data root. No real calibration output has been
-transmitted or accepted.
+Step 3's design, calibration-sample infrastructure, manual Web amendment,
+bridge implementation, controlled-browser workflow, and automated-browser
+audit trail were approved and merged in PRs #6–#12. Calibration
+`425cf5b3-b150-43ed-80bf-b9226397e73b` has now completed the model-execution
+phase for all 30 deterministic Web packets (600 records) under the canonical
+data root. First-attempt validity was 25/30 (83.3%); five batches required a
+retry, including one that required a third attempt, for 6 failed attempts and
+36 total attempts. Final schema-complete coverage is 600/600 records, batch
+completion is 30/30, and the batch retry rate is 5/30 (16.7%). The validated
+model output assigned 144 `YES`, 36 `MAYBE`, and 420 `NO` decisions.
+
+Attempt-level provenance in the external SQLite database records prompt
+version, visible model label, provider route, execution mode, software
+revision, batch size, input/output paths and checksums, timestamps, status and
+errors. Automated-browser attempts additionally record wrapper version and
+checksum; the canonical wrapper is `ABOS-WEB-WRAPPER-v1`. Validated screens use
+prompt `v1` and visible model label `5.6sol high`. Model identity precision is
+`ui-display-name-only`; no backend or API model identifier was inferred.
+Temperature and maximum output tokens were not exposed by the ChatGPT Web UI
+and are recorded as `unavailable_not_exposed_by_ui`. Attempt provenance also
+records operator, fresh-chat confirmation, and batch/attempt identity. Human
+reference review has not started, so these are prioritization labels rather
+than final corpus exclusions, and this milestone does not mean that
+calibration has passed.
 
 ## What's been answered
 
@@ -45,13 +64,20 @@ transmitted or accepted.
 |---|---:|---:|---:|---|
 | Registry and pipeline foundation | 20% | 100% | 20% | Prospective maintenance later |
 | Historical backfill and coverage | 25% | 100% | 25% | Prospective maintenance later |
-| LLM calibration and human audit | 20% | 25% | 5% | Human-execute and validate 30 Web packets |
+| LLM calibration and human audit | 20% | 50% | 10% | Build the adjudicated reference standard and evaluate calibration gates |
 | Full-text triage and retrieval | 15% | 0% | 0% | Reviewed paper list |
 | Blueprint extraction and updates | 20% | 0% | 0% | Included full-text corpus |
 
 ## What's still open
 
-- Calibrate LLM screening and measure `NO` false negatives — not started.
+- Complete two independent reviews of all 600 calibration records, adjudicate
+  disagreements with the named third reviewer, and freeze the reference
+  standard — not started.
+- Compute the benchmark and stratified weighted recall, 10,000-bootstrap 95%
+  confidence interval, per-stratum recall with Clopper-Pearson intervals,
+  false-negative rate, and error review. Full-corpus execution remains blocked
+  until weighted positive recall is at least 0.95 and every other locked Step 3
+  acceptance gate passes.
 - Retrieve lawful full text for reviewed inclusions — not started.
 - Validate blueprint extraction and prospective updates — not started.
 - Add baseline CI, a non-blocking Step 1 review observation.
