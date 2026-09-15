@@ -10,9 +10,9 @@ blueprints from it?
 
 Engineering is `55%` complete against the charter's five-step definition of
 100%. Step 2 is closed; Step 3's 600-record Web model-execution phase is
-complete, while reference-standard annotation and calibration assessment
-remain open. Corpus/scientific readiness remains `0%`: no paper has received
-human reference review, been included, or been downloaded.
+complete, while single-reviewer provisional annotation and calibration
+assessment remain open. Corpus/scientific readiness remains `0%`: no paper has
+received human review, been included, or been downloaded.
 
 Step 1 was approved and merged as PR #1. The Step 2 runner and two
 evidence-based PubMed partitioning amendments were reviewed and merged in
@@ -43,6 +43,11 @@ records operator, fresh-chat confirmation, and batch/attempt identity. Human
 reference review has not started, so these are prioritization labels rather
 than final corpus exclusions, and this milestone does not mean that
 calibration has passed.
+Because only one human reviewer is currently available, the active Step 3
+amendment uses a blinded single-reviewer provisional reference plus a delayed
+60-record repeat pass. It explicitly accepts lower evidentiary confidence and
+does not describe the result as a gold standard, consensus, independent human
+validation, or adjudicated reference standard.
 
 ## What's been answered
 
@@ -64,20 +69,21 @@ calibration has passed.
 |---|---:|---:|---:|---|
 | Registry and pipeline foundation | 20% | 100% | 20% | Prospective maintenance later |
 | Historical backfill and coverage | 25% | 100% | 25% | Prospective maintenance later |
-| LLM calibration and human audit | 20% | 50% | 10% | Build the adjudicated reference standard and evaluate calibration gates |
+| LLM calibration and human audit | 20% | 50% | 10% | Build the single-reviewer provisional reference and evaluate its operational gates |
 | Full-text triage and retrieval | 15% | 0% | 0% | Reviewed paper list |
 | Blueprint extraction and updates | 20% | 0% | 0% | Included full-text corpus |
 
 ## What's still open
 
-- Complete two independent reviews of all 600 calibration records, adjudicate
-  disagreements with the named third reviewer, and freeze the reference
-  standard — not started.
+- Complete one blinded review of all 600 calibration records, followed after
+  at least seven days by a deterministic blinded repeat of 60 records and
+  documented self-reconciliation — not started.
 - Compute the benchmark and stratified weighted recall, 10,000-bootstrap 95%
   confidence interval, per-stratum recall with Clopper-Pearson intervals,
-  false-negative rate, and error review. Full-corpus execution remains blocked
-  until weighted positive recall is at least 0.95 and every other locked Step 3
-  acceptance gate passes.
+  false-negative rate, intra-rater stability, and error review. These are
+  provisional operational estimates, not independent human validation.
+  Full-corpus queue generation remains blocked until weighted positive recall
+  is at least 0.95 and every amended Step 3 gate passes.
 - Retrieve lawful full text for reviewed inclusions — not started.
 - Validate blueprint extraction and prospective updates — not started.
 - Add baseline CI, a non-blocking Step 1 review observation.
