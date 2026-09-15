@@ -1,5 +1,11 @@
 # Step 3: LLM screening calibration and human audit — design
 
+> **Active amendment:**
+> `STEP3_SINGLE_REVIEWER_CALIBRATION_AMENDMENT.md` supersedes the human-reference
+> and calibration-gate sections while only one human reviewer is available.
+> The original multi-reviewer protocol below is retained as the preferred
+> standard and historical design record.
+
 ## Purpose and boundary
 
 Step 3 turns the immutable Step 2 Master Universe into a reviewed queue for
