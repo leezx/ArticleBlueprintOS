@@ -35,9 +35,14 @@ version, visible model label, provider route, execution mode, software
 revision, batch size, input/output paths and checksums, timestamps, status and
 errors. Automated-browser attempts additionally record wrapper version and
 checksum; the canonical wrapper is `ABOS-WEB-WRAPPER-v1`. Validated screens use
-prompt `v1` and visible model label `5.6sol high`. Human reference review has
-not started, so these are prioritization labels rather than final corpus
-exclusions, and this milestone does not mean that calibration has passed.
+prompt `v1` and visible model label `5.6sol high`. Model identity precision is
+`ui-display-name-only`; no backend or API model identifier was inferred.
+Temperature and maximum output tokens were not exposed by the ChatGPT Web UI
+and are recorded as `unavailable_not_exposed_by_ui`. Attempt provenance also
+records operator, fresh-chat confirmation, and batch/attempt identity. Human
+reference review has not started, so these are prioritization labels rather
+than final corpus exclusions, and this milestone does not mean that
+calibration has passed.
 
 ## What's been answered
 
